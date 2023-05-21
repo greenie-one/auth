@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "greenie-mvp-backend.fullname" . }}
+  labels:
+    {{- include "greenie-mvp-backend.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "greenie-mvp-backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "greenie-mvp-backend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "greenie-mvp-backend.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.name }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env: 
+            - name: APP_ENV
+              value: {{ .Values.APP_ENV }}
+
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-{{ .Values.APP_ENV }}-key
+                  key: private
+
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-{{ .Values.APP_ENV }}-key
+                  key: public
+
+            - name: google-service-account-key
+              valueFrom:
+                secretKeyRef:
+                  name: service-account-key 
+                  key: key.json
+
+            {{ if eq .Values.APP_ENV "production" }}
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: db-{{ .Values.APP_ENV }}-host
+                  key: value
+                
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-{{ .Values.APP_ENV }}-user
+                  key: value
+          
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-{{ .Values.APP_ENV }}-password
+                  key: value
+
+            - name: REDIS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: redis-{{ .Values.APP_ENV }}-username
+                  key: value
+
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-{{ .Values.APP_ENV }}-password
+                  key: value
+          {{ end }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health-check
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 300
+          readinessProbe:
+            httpGet:
+              path: /health-check
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 300
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

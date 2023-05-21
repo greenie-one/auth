@@ -1,0 +1,46 @@
+# Default values for greenie-mvp-backend.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  name: ghcr.io/greenie-one/backend:sha-ce6a232
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: [{ name: regcred }]
+nameOverride: "greenie-auth-prod"
+fullnameOverride: "greenie-auth-prod"
+
+APP_ENV: production
+
+Google_Service_Account_Secret_Name: "service-account-key"
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "greenie-auth-prod"
+
+service:
+  type: NodePort
+  port: 8080
+
+resources:
+  {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 1000m
+  #   memory: 1000Mi
+  # requests:
+  #   cpu: 128m
+  #   memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
