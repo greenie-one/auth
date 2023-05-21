@@ -90,10 +90,17 @@ fn create_user(data: CreateUserDto) -> Result<UserModel, Error> {
 }
 
 fn validate_user(data: CreateUserDto, existing_user: UserModel) -> Result<UserModel, Error> {
-    let verify = bcrypt::verify(
-        data.password.unwrap(),
-        existing_user.clone().password.unwrap().as_str(),
-    )?;
+    let mut verify: bool = false;
+    if data.email.is_some() {
+        verify = bcrypt::verify(
+            data.password.unwrap(),
+            existing_user.clone().password.unwrap().as_str(),
+        )?;
+    }
+
+    if data.mobile_number.is_some() {
+        verify = true;
+    }
 
     if verify {
         return Ok(existing_user);

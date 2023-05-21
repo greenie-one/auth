@@ -30,9 +30,9 @@ pub async fn request_otp(user: UserModel) -> Result<(), Error> {
 
 pub fn validate_otp(user: UserModel, otp: String) -> Result<(), Error> {
     let contact = if user.mobile_number.is_some() {
-        user.mobile_number
+        user.mobile_number.clone()
     } else if user.email.is_some() {
-        user.email
+        user.email.clone()
     } else {
         None
     };
@@ -44,7 +44,8 @@ pub fn validate_otp(user: UserModel, otp: String) -> Result<(), Error> {
     let otp_key = format!("{}_otp", contact.unwrap());
     let otp_fetched: String = REDIS_INSTANCE.lock().unwrap().get(otp_key.to_owned())?;
 
-    if otp.eq(&otp_fetched) {
+    // Check OTP only on mobile number. Let email pass without OTP
+    if (user.mobile_number.is_some() && otp.eq(&otp_fetched)) || (user.email.is_some()) {
         REDIS_INSTANCE.lock().unwrap().del(otp_key)?;
         return Ok(());
     }
