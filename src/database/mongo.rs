@@ -58,8 +58,6 @@ impl MongoDB {
             filter.insert("mobileNumber", mobile.unwrap());
         }
 
-        println!("here {:?}", filter);
-
         let found = collection
             .find_one(filter, FindOneOptions::default())
             .await?;
