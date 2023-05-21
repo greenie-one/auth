@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{env, sync::Mutex};
 
 use lazy_static::lazy_static;
 use redis::Commands;
@@ -12,9 +12,17 @@ pub struct Redis {
 
 impl Redis {
     pub fn new() -> Redis {
-        let connection =
-            redis::Client::open("redis://greenie_mvp:J4g0eugG6JeEaUVpy@redis.greenie.one:6379")
-                .unwrap();
+        let username = env::var("REDIS_USERNAME").unwrap();
+        let password = env::var("REDIS_PASSWORD").unwrap();
+        let host = env::var("REDIS_HOST").unwrap();
+        let port = env::var("REDIS_PORT").unwrap();
+        let database = env::var("REDIS_DB").unwrap();
+
+        let conn_string = format!(
+            "redis://{}:{}@{}:{}/{}",
+            username, password, host, port, database
+        );
+        let connection = redis::Client::open(conn_string).unwrap();
         Self { connection }
     }
 

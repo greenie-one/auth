@@ -1,3 +1,5 @@
+use std::env;
+
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use mongodb::{
@@ -27,7 +29,16 @@ pub struct MongoDB {
 
 impl MongoDB {
     pub async fn new() -> MongoDB {
-        let client_options = ClientOptions::parse("mongodb+srv://greenie_backend:98mBkHwq2l03ZIiTpXK665OK8@development.foqafth.mongodb.net/greenie_mvp").await.unwrap();
+        let username = env::var("DB_USER").unwrap();
+        let password = env::var("DB_PASSWORD").unwrap();
+        let host = env::var("DB_HOST").unwrap();
+        let database = env::var("DB_DATABASE").unwrap();
+
+        let conn_string = format!(
+            "mongodb+srv://{}:{}@{}/{}",
+            username, password, host, database
+        );
+        let client_options = ClientOptions::parse(conn_string).await.unwrap();
         let client = Client::with_options(client_options).unwrap();
 
         let database = client.database("greenie_mvp");

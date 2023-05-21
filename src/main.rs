@@ -12,6 +12,7 @@ use crate::services::signup::{create_temp_user, validate_by_validation_id, Valid
 
 mod database;
 mod dtos;
+mod env_config;
 mod error;
 mod services;
 mod structs;
@@ -45,6 +46,7 @@ async fn validate_otp(item: web::types::Json<ValidateOtpDto>) -> Result<HttpResp
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
+    env_config::load_env();
     env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
