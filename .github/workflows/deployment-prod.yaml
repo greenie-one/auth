@@ -55,6 +55,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha
 
       - name: Create namespace
         run: kubectl create namespace auth --dry-run=client -o yaml | kubectl apply -f -
