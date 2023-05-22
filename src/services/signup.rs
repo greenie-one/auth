@@ -1,5 +1,5 @@
 use std::{
-    fmt, fs,
+    env, fmt, fs,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -22,11 +22,26 @@ use uuid::Uuid;
 
 use super::validate_otp::{request_otp, validate_otp};
 
+fn get_keys() -> (EncodingKey, EncodingKey) {
+    let mut private_key_pem = env::var("JWT_PRIVATE_KEY").map(|v| v.as_bytes().to_vec());
+    let mut public_key_pem = env::var("JWT_PUBLIC_KEY").map(|v| v.as_bytes().to_vec());
+
+    if private_key_pem.is_err() {
+        private_key_pem = Ok(fs::read("./keys/local/private.pem").unwrap());
+    }
+
+    if public_key_pem.is_err() {
+        public_key_pem = Ok(fs::read("./keys/local/public.pem").unwrap());
+    }
+
+    let private_key = EncodingKey::from_rsa_pem(&private_key_pem.unwrap()).unwrap();
+    let public_key = EncodingKey::from_rsa_pem(&public_key_pem.unwrap()).unwrap();
+
+    (private_key, public_key)
+}
+
 lazy_static! {
-    static ref DECODING_KEY: EncodingKey =
-        EncodingKey::from_rsa_pem(&fs::read("./keys/local/public.pem").unwrap()).unwrap();
-    static ref ENCODING_KEY: EncodingKey =
-        EncodingKey::from_rsa_pem(&fs::read("./keys/local/private.pem").unwrap()).unwrap();
+    static ref ENCODING_KEYS: (EncodingKey, EncodingKey) = get_keys();
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
@@ -64,8 +79,8 @@ fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
         ..Default::default()
     };
 
-    let access_token = encode(&header, &access_claims, &ENCODING_KEY)?;
-    let refresh_token = encode(&header, &refresh_claims, &ENCODING_KEY)?;
+    let access_token = encode(&header, &access_claims, &ENCODING_KEYS.0)?;
+    let refresh_token = encode(&header, &refresh_claims, &ENCODING_KEYS.0)?;
 
     Ok(AccessTokenResponse {
         access_token,

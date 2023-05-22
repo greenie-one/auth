@@ -1,7 +1,7 @@
 use std::{env, io};
 
 use ntex::http::StatusCode;
-use ntex::web::{self, middleware, App, HttpResponse};
+use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use serde_json::json;
 use validator::Validate;
 
@@ -16,6 +16,12 @@ mod env_config;
 mod error;
 mod services;
 mod structs;
+
+#[web::post("/validate_token")]
+async fn validate_token(req: HttpRequest) -> Result<HttpResponse, Error> {
+    println!("REQ: {:?}", req);
+    Ok(HttpResponse::build(StatusCode::OK).finish())
+}
 
 #[web::post("/signup")]
 async fn signup(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
