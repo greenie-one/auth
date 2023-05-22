@@ -1,1 +1,6 @@
 /target
+/templates
+/.github
+/.vscode
+/.keys
+Dockerfile

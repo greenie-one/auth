@@ -16,4 +16,6 @@ RUN apk add --no-cache libgcc
 COPY --from=builder /app/target/release/greenie-auth-module .
 COPY --from=builder /app/.env.dev .
 COPY --from=builder /app/.env.production .
+
+ENV APP_ENV=dev
 ENTRYPOINT ["/greenie-auth-module"]
