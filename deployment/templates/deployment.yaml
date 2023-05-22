@@ -49,12 +49,6 @@ spec:
                   name: jwt-{{ .Values.APP_ENV }}-key
                   key: public
 
-            - name: google-service-account-key
-              valueFrom:
-                secretKeyRef:
-                  name: service-account-key 
-                  key: key.json
-
             {{ if eq .Values.APP_ENV "production" }}
             - name: DB_HOST
               valueFrom:
