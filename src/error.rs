@@ -4,7 +4,7 @@ use std::{
 };
 
 use ntex::{
-    http::StatusCode,
+    http::{header::ToStrError, StatusCode},
     web::{self, HttpRequest, WebResponseError},
 };
 use redis::RedisError;
@@ -27,6 +27,7 @@ pub enum Error {
     BcryptError(bcrypt::BcryptError),
     SystemTimeError(SystemTimeError),
     JWTError(jsonwebtoken::errors::Error),
+    ToStrError(ToStrError),
     WebResponseErrorCustom(WebResponseErrorCustom),
 }
 
@@ -60,6 +61,7 @@ impl WebResponseError for Error {
             Error::ValidationErrors(e) => (json!({"error": e.to_string()}), 400),
 
             Error::WebResponseErrorCustom(e) => (json!({ "error": e.msg }), e.status),
+            Error::ToStrError(e) => (json!({"error": e.to_string()}), 400),
         };
         web::HttpResponse::build(StatusCode::from_u16(status).unwrap()).json(&err_json)
     }
@@ -104,5 +106,11 @@ impl From<SystemTimeError> for Error {
 impl From<jsonwebtoken::errors::Error> for Error {
     fn from(value: jsonwebtoken::errors::Error) -> Self {
         Error::JWTError(value)
+    }
+}
+
+impl From<ToStrError> for Error {
+    fn from(value: ToStrError) -> Self {
+        Error::ToStrError(value)
     }
 }

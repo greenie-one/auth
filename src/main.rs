@@ -8,7 +8,9 @@ use validator::Validate;
 use crate::dtos::signup_dto::CreateUserDto;
 use crate::dtos::validate_otp_dto::ValidateOtpDto;
 use crate::error::Error;
-use crate::services::signup::{create_temp_user, validate_by_validation_id, ValidationType};
+use crate::services::signup::{
+    create_temp_user, decode_token, validate_by_validation_id, ValidationType,
+};
 
 mod database;
 mod dtos;
@@ -17,10 +19,16 @@ mod error;
 mod services;
 mod structs;
 
-#[web::post("/validate_token")]
-async fn validate_token(req: HttpRequest) -> Result<HttpResponse, Error> {
-    println!("REQ: {:?}", req);
-    Ok(HttpResponse::build(StatusCode::OK).finish())
+#[web::get("/validate_token")]
+async fn validate_token_get(req: HttpRequest) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+    let auth_token = req.headers().get("authorization");
+    if auth_token.is_some() {
+        let claims = decode_token(auth_token.unwrap().to_str()?)?;
+        resp.set_header("x-user-details", serde_json::to_string(&claims)?);
+    }
+
+    Ok(resp.finish())
 }
 
 #[web::post("/signup")]
@@ -64,8 +72,9 @@ async fn main() -> io::Result<()> {
             .service(signup)
             .service(login)
             .service(validate_otp)
+            .service(validate_token_get)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }

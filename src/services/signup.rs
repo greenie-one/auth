@@ -14,7 +14,9 @@ use crate::{
     error::Error,
     structs::{AccessTokenResponse, TokenClaims, ValidationData},
 };
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{
+    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
+};
 use mongodb::bson::oid::ObjectId;
 use ntex::rt::spawn;
 use serde::{Deserialize, Serialize};
@@ -22,7 +24,7 @@ use uuid::Uuid;
 
 use super::validate_otp::{request_otp, validate_otp};
 
-fn get_keys() -> (EncodingKey, EncodingKey) {
+fn get_keys() -> (EncodingKey, DecodingKey) {
     let mut private_key_pem = env::var("JWT_PRIVATE_KEY").map(|v| v.as_bytes().to_vec());
     let mut public_key_pem = env::var("JWT_PUBLIC_KEY").map(|v| v.as_bytes().to_vec());
 
@@ -35,13 +37,13 @@ fn get_keys() -> (EncodingKey, EncodingKey) {
     }
 
     let private_key = EncodingKey::from_rsa_pem(&private_key_pem.unwrap()).unwrap();
-    let public_key = EncodingKey::from_rsa_pem(&public_key_pem.unwrap()).unwrap();
+    let public_key = DecodingKey::from_rsa_pem(&public_key_pem.unwrap()).unwrap();
 
     (private_key, public_key)
 }
 
 lazy_static! {
-    static ref ENCODING_KEYS: (EncodingKey, EncodingKey) = get_keys();
+    static ref TOKEN_KEYS: (EncodingKey, DecodingKey) = get_keys();
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
@@ -57,6 +59,13 @@ impl fmt::Display for ValidationType {
             ValidationType::Signup => write!(f, "SIGNUP"),
         }
     }
+}
+
+pub fn decode_token(token: &str) -> Result<TokenClaims, Error> {
+    let validation = Validation::new(Algorithm::RS384);
+    let token_claims: TokenData<TokenClaims> = decode(token, &TOKEN_KEYS.1, &validation)?;
+
+    Ok(token_claims.claims)
 }
 
 fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
@@ -79,8 +88,8 @@ fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
         ..Default::default()
     };
 
-    let access_token = encode(&header, &access_claims, &ENCODING_KEYS.0)?;
-    let refresh_token = encode(&header, &refresh_claims, &ENCODING_KEYS.0)?;
+    let access_token = encode(&header, &access_claims, &TOKEN_KEYS.0)?;
+    let refresh_token = encode(&header, &refresh_claims, &TOKEN_KEYS.0)?;
 
     Ok(AccessTokenResponse {
         access_token,
