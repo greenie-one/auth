@@ -8,9 +8,8 @@ use validator::Validate;
 use crate::dtos::signup_dto::CreateUserDto;
 use crate::dtos::validate_otp_dto::ValidateOtpDto;
 use crate::error::Error;
-use crate::services::signup::{
-    create_temp_user, decode_token, validate_by_validation_id, ValidationType,
-};
+use crate::services::signup::{create_temp_user, validate_by_validation_id, ValidationType};
+use crate::services::token::decode_token;
 
 mod database;
 mod dtos;

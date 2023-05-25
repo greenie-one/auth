@@ -14,8 +14,6 @@ fullnameOverride: "greenie-auth-prod"
 
 APP_ENV: production
 
-Google_Service_Account_Secret_Name: "service-account-key"
-
 serviceAccount:
   create: true
   annotations: {}
