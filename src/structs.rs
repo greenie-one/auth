@@ -22,6 +22,9 @@ pub struct TokenClaims {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccessTokenResponse {
+    #[serde(rename = "accessToken")]
     pub access_token: String,
+
+    #[serde(rename = "refreshToken")]
     pub refresh_token: String,
 }

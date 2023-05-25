@@ -46,6 +46,7 @@ pub fn decode_token(token: &str) -> Result<TokenClaims, Error> {
 
 pub fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    let expiry = now + 24 * 60 * 60;
     let access_claims = TokenClaims {
         email: user.email,
         iss: "greenie.one".to_owned(),
@@ -54,7 +55,7 @@ pub fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
         iat: now,
         is_refresh: None,
         sub: user._id.unwrap().to_string(),
-        exp: now + 24 * 60 * 60,
+        exp: expiry,
     };
 
     let mut refresh_claims = access_claims.clone();
