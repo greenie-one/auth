@@ -62,29 +62,30 @@ impl fmt::Display for ValidationType {
 }
 
 pub fn decode_token(token: &str) -> Result<TokenClaims, Error> {
-    let validation = Validation::new(Algorithm::RS384);
+    let validation = Validation::new(Algorithm::RS256);
     let token_claims: TokenData<TokenClaims> = decode(token, &TOKEN_KEYS.1, &validation)?;
 
     Ok(token_claims.claims)
 }
 
 fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let access_claims = TokenClaims {
         email: user.email,
-        iss: "Greenie.one".to_owned(),
+        iss: "greenie.one".to_owned(),
         session_id: "".to_owned(),
         roles: user.roles,
-        iat: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+        iat: now,
         is_refresh: None,
         sub: user._id.unwrap().to_string(),
-        exp: 30 * 60,
+        exp: now + 24 * 60 * 60,
     };
 
     let mut refresh_claims = access_claims.clone();
     refresh_claims.is_refresh = Some(true);
 
     let header = Header {
-        alg: Algorithm::RS384,
+        alg: Algorithm::RS256,
         ..Default::default()
     };
 

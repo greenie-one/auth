@@ -23,9 +23,15 @@ mod structs;
 async fn validate_token_get(req: HttpRequest) -> Result<HttpResponse, Error> {
     let mut resp = HttpResponse::build(StatusCode::OK);
     let auth_token = req.headers().get("authorization");
+
     if auth_token.is_some() {
-        let claims = decode_token(auth_token.unwrap().to_str()?)?;
-        resp.set_header("x-user-details", serde_json::to_string(&claims)?);
+        let token_stripped = &auth_token.unwrap().to_str()?[7..];
+        let claims = decode_token(token_stripped);
+        println!("{:?}", claims);
+        match claims {
+            Ok(c) => resp.set_header("x-user-details", serde_json::to_string(&c)?),
+            Err(_) => resp.status(StatusCode::UNAUTHORIZED),
+        };
     }
 
     Ok(resp.finish())

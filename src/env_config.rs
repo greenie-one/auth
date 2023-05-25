@@ -1,5 +1,10 @@
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref APP_ENV: String = std::env::var("APP_ENV").expect("APP_ENV should be defined");
+}
+
 pub fn load_env() {
-    let app_env = std::env::var("APP_ENV").expect("APP_ENV should be defined");
-    println!("APP_ENV: {}", app_env);
-    dotenv::from_filename(format!("./.env.{}", app_env)).unwrap();
+    println!("APP_ENV: {:?}", APP_ENV.as_str());
+    dotenv::from_filename(format!("./.env.{}", APP_ENV.as_str())).unwrap();
 }
