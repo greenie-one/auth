@@ -1,9 +1,4 @@
-use std::{
-    fmt, fs,
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-use lazy_static::lazy_static;
+use std::fmt;
 
 use crate::{
     database::{
@@ -12,22 +7,18 @@ use crate::{
     },
     dtos::{signup_dto::CreateUserDto, validate_otp_dto::ValidateOtpDto},
     error::Error,
-    structs::{AccessTokenResponse, TokenClaims, ValidationData},
+    structs::{AccessTokenResponse, ValidationData},
 };
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+
 use mongodb::bson::oid::ObjectId;
 use ntex::rt::spawn;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::validate_otp::{request_otp, validate_otp};
-
-lazy_static! {
-    static ref DECODING_KEY: EncodingKey =
-        EncodingKey::from_rsa_pem(&fs::read("./keys/local/public.pem").unwrap()).unwrap();
-    static ref ENCODING_KEY: EncodingKey =
-        EncodingKey::from_rsa_pem(&fs::read("./keys/local/private.pem").unwrap()).unwrap();
-}
+use super::{
+    token::create_token,
+    validate_otp::{request_otp, validate_otp},
+};
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub enum ValidationType {
@@ -42,35 +33,6 @@ impl fmt::Display for ValidationType {
             ValidationType::Signup => write!(f, "SIGNUP"),
         }
     }
-}
-
-fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
-    let access_claims = TokenClaims {
-        email: user.email,
-        iss: "Greenie.one".to_owned(),
-        session_id: "".to_owned(),
-        roles: user.roles,
-        iat: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
-        is_refresh: None,
-        sub: user._id.unwrap().to_string(),
-        exp: 30 * 60,
-    };
-
-    let mut refresh_claims = access_claims.clone();
-    refresh_claims.is_refresh = Some(true);
-
-    let header = Header {
-        alg: Algorithm::RS384,
-        ..Default::default()
-    };
-
-    let access_token = encode(&header, &access_claims, &ENCODING_KEY)?;
-    let refresh_token = encode(&header, &refresh_claims, &ENCODING_KEY)?;
-
-    Ok(AccessTokenResponse {
-        access_token,
-        refresh_token,
-    })
 }
 
 fn create_user(data: CreateUserDto) -> Result<UserModel, Error> {
@@ -90,10 +52,17 @@ fn create_user(data: CreateUserDto) -> Result<UserModel, Error> {
 }
 
 fn validate_user(data: CreateUserDto, existing_user: UserModel) -> Result<UserModel, Error> {
-    let verify = bcrypt::verify(
-        data.password.unwrap(),
-        existing_user.clone().password.unwrap().as_str(),
-    )?;
+    let mut verify: bool = false;
+    if data.email.is_some() {
+        verify = bcrypt::verify(
+            data.password.unwrap(),
+            existing_user.clone().password.unwrap().as_str(),
+        )?;
+    }
+
+    if data.mobile_number.is_some() {
+        verify = true;
+    }
 
     if verify {
         return Ok(existing_user);
