@@ -1,6 +1,8 @@
 use std::{env, io};
 
 use ntex::http::StatusCode;
+use ntex::web::{self, middleware, App, HttpResponse};
+use ntex_cors::Cors;
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use serde_json::json;
 use validator::Validate;
@@ -74,6 +76,15 @@ async fn main() -> io::Result<()> {
     web::server(|| {
         App::new()
             .wrap(middleware::Logger::default())
+            .wrap(
+                Cors::new() // <- Construct CORS middleware builder
+                    .allowed_origin("https://dev.greenie.one")
+                    .allowed_origin("https://greenie.one")
+                    .allowed_origin("https://api.greenie.one")
+                    .allowed_origin("https://dev-api.greenie.one")
+                    .supports_credentials()
+                    .finish(),
+            )
             .service(signup)
             .service(login)
             .service(validate_otp)
