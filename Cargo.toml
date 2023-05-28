@@ -21,3 +21,4 @@ uuid = { version = "1.3.3", features = ["v4"]}
 rand = "0.8.5"
 bcrypt = "0.14.0"
 jsonwebtoken = "8.3.0"
+ntex-cors = "0.3.0"
