@@ -1,8 +1,9 @@
 use std::{env, io};
 
 use ntex::http::StatusCode;
-use ntex::web::{self, middleware, App, HttpResponse, HttpRequest};
+use ntex::web::{self, middleware, App, HttpResponse};
 use ntex_cors::Cors;
+use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use serde_json::json;
 use validator::Validate;
 
@@ -14,10 +15,10 @@ use crate::services::token::decode_token;
 
 mod database;
 mod dtos;
+mod env_config;
 mod error;
 mod services;
 mod structs;
-mod env_config;
 
 #[web::get("/validate_token")]
 async fn validate_token_get(req: HttpRequest) -> Result<HttpResponse, Error> {
