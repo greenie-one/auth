@@ -78,8 +78,11 @@ jobs:
         with:
           command: build
           args: --release --target=x86_64-unknown-linux-musl
-          
 
+      - name: List files
+        run: |
+          ls target/release
+          
       - name: Build and push Docker image
         uses: docker/build-push-action@v4.0.0
         with:
