@@ -56,6 +56,11 @@ jobs:
           tags: |
             type=sha
 
+      - uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: musl-tools # provides musl-gcc
+          version: 1.0
+
       - name: Setup rust toolchain
         uses: actions-rs/toolchain@v1
         with:
