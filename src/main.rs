@@ -67,6 +67,7 @@ async fn validate_otp(item: web::types::Json<ValidateOtpDto>) -> Result<HttpResp
 async fn main() -> io::Result<()> {
     let app_env = std::env::var("APP_ENV").expect("APP_ENV should be defined");
     println!("APP_ENV: {}", app_env);
+    println!("Testing cache");
     env_config::load_env();
     env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
