@@ -56,6 +56,20 @@ jobs:
           tags: |
             type=sha
 
+      - name: Setup rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build auth module
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+          
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4.0.0
         with:
