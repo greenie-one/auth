@@ -55,8 +55,9 @@ impl WebResponseError for Error {
             | Error::RedisError(_)
             | Error::BcryptError(_)
             | Error::SystemTimeError(_)
-            | Error::JWTError(_)
             | Error::JsonError(_) => (json!({ "error": "Internal server error" }), 500),
+
+            Error::JWTError(_) => (json!("Unauthorized"), 401),
 
             Error::ValidationErrors(e) => (json!({"error": e.to_string()}), 400),
 
