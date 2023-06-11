@@ -1,6 +1,7 @@
 use std::{env, io};
 
 use ntex::http::StatusCode;
+
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use serde_json::json;
 use services::change_password::change_password as change_password_service;
@@ -23,7 +24,6 @@ mod error;
 mod services;
 mod structs;
 
-#[web::get("/validate_token")]
 async fn validate_token(req: HttpRequest) -> Result<HttpResponse, Error> {
     let mut resp = HttpResponse::build(StatusCode::OK);
     let auth_token = req.headers().get("authorization");
@@ -41,7 +41,6 @@ async fn validate_token(req: HttpRequest) -> Result<HttpResponse, Error> {
     Ok(resp.finish())
 }
 
-#[web::post("/signup")]
 async fn signup(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
@@ -50,7 +49,6 @@ async fn signup(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, E
     Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": validation_id })))
 }
 
-#[web::post("/login")]
 async fn login(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
@@ -59,7 +57,6 @@ async fn login(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, Er
     Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": validation_id })))
 }
 
-#[web::post("/validateOTP")]
 async fn validate_otp(item: web::types::Json<ValidateOtpDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
@@ -68,7 +65,6 @@ async fn validate_otp(item: web::types::Json<ValidateOtpDto>) -> Result<HttpResp
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
 }
 
-#[web::post("/validate_forgot_password")]
 async fn validate_forgot_password_otp(
     item: web::types::Json<ValidateForgotPasswordDto>,
 ) -> Result<HttpResponse, Error> {
@@ -78,7 +74,6 @@ async fn validate_forgot_password_otp(
     Ok(HttpResponse::build(StatusCode::OK).finish())
 }
 
-#[web::post("/forgot_password")]
 async fn forgot_password(item: web::types::Json<ForgotPasswordDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
@@ -86,7 +81,6 @@ async fn forgot_password(item: web::types::Json<ForgotPasswordDto>) -> Result<Ht
     Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": data })))
 }
 
-#[web::post("/change_password")]
 async fn change_password(
     req: HttpRequest,
     item: web::types::Json<ChangePasswordDto>,
@@ -111,23 +105,46 @@ async fn change_password(
     Ok(resp.finish())
 }
 
+fn get_route(route: &str) -> String {
+    let app_env = std::env::var("APP_ENV").expect("APP_ENV should be defined");
+    if app_env == "local" {
+        format!("/auth{}", route)
+    } else {
+        route.to_owned()
+    }
+}
+
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    let app_env = std::env::var("APP_ENV").expect("APP_ENV should be defined");
-    println!("APP_ENV: {}", app_env);
     env_config::load_env();
     env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    web::server(|| {
+    web::server(move || {
         App::new()
             .wrap(middleware::Logger::default())
-            .service(signup)
-            .service(login)
-            .service(validate_otp)
-            .service(validate_token)
-            .service(forgot_password)
-            .service(validate_forgot_password_otp)
+            .route(get_route("/signup").as_str(), web::post().to(signup))
+            .route(
+                get_route("/validate_token").as_str(),
+                web::get().to(validate_token),
+            )
+            .route(get_route("/login").as_str(), web::post().to(login))
+            .route(
+                get_route("/validateOTP").as_str(),
+                web::post().to(validate_otp),
+            )
+            .route(
+                get_route("/validate_forgot_password").as_str(),
+                web::post().to(validate_forgot_password_otp),
+            )
+            .route(
+                get_route("/forgot_password").as_str(),
+                web::post().to(forgot_password),
+            )
+            .route(
+                get_route("/change_password").as_str(),
+                web::post().to(change_password),
+            )
     })
     .bind("0.0.0.0:8080")?
     .run()

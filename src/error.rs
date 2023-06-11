@@ -25,6 +25,7 @@ pub struct WebResponseErrorCustom {
 pub enum Error {
     ValidationErrors(ValidationErrors),
     MongoError(mongodb::error::Error),
+    MongoOIDError(mongodb::bson::oid::Error),
     RedisError(RedisError),
     JsonError(JsonError),
     BcryptError(bcrypt::BcryptError),
@@ -66,6 +67,7 @@ impl WebResponseError for Error {
 
             Error::WebResponseErrorCustom(e) => (json!({ "error": e.msg }), e.status),
             Error::ToStrError(e) => (json!({"error": e.to_string()}), 400),
+            Error::MongoOIDError(_) => (json!({"error": "Invalid bson parameter"}), 400),
         };
         web::HttpResponse::build(StatusCode::from_u16(status).unwrap()).json(&err_json)
     }
@@ -125,5 +127,11 @@ impl From<PoisonError<MutexGuard<'_, Redis>>> for Error {
             msg: value.to_string(),
             status: 500,
         })
+    }
+}
+
+impl From<mongodb::bson::oid::Error> for Error {
+    fn from(value: mongodb::bson::oid::Error) -> Self {
+        Error::MongoOIDError(value)
     }
 }

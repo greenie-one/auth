@@ -81,11 +81,13 @@ impl MongoDB {
     ) -> Result<Option<UserModel>, Error> {
         let collection: mongodb::Collection<UserModel> = self.connection.collection("users");
 
-        println!("Got new hash {}", password);
-
+        let parsed_user_id = ObjectId::from_str(&user_id)?;
         let filter = doc! {
-            "_id": user_id
+            "_id": parsed_user_id
         };
+
+        let doc = doc! { "$set" : { "password": password.clone() } };
+
         collection
             .find_one_and_update(filter, doc! { "$set" : { "password": password } }, None)
             .await
