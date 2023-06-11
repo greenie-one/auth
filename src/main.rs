@@ -95,7 +95,7 @@ async fn change_password(
         match claims {
             Ok(c) => {
                 item.validate()?;
-                change_password_service(c.sub, item.into_inner()).await?;
+                change_password_service(c.sub, item.into_inner(), false).await?;
                 resp.status(StatusCode::OK)
             }
             Err(_) => resp.status(StatusCode::UNAUTHORIZED),
