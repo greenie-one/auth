@@ -34,3 +34,16 @@ pub struct ChangePasswordValidationData {
     pub otp: String,
     pub user_id: String,
 }
+
+#[derive(Debug)]
+pub struct WebResponseErrorCustom {
+    pub msg: String,
+    pub status: u16,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GenericError<'a> {
+    pub message: &'a str,
+    pub status: u16,
+    pub code: &'a str,
+}

@@ -6,7 +6,7 @@ use crate::{
         redis::REDIS_INSTANCE,
     },
     dtos::{signup_dto::CreateUserDto, validate_otp_dto::ValidateOtpDto},
-    error::Error,
+    error::{Error, ErrorEnum},
     structs::{AccessTokenResponse, ValidationData},
 };
 
@@ -68,7 +68,7 @@ fn validate_user(data: CreateUserDto, existing_user: UserModel) -> Result<UserMo
         return Ok(existing_user);
     }
 
-    Err(Error::new("Invalid username or password", 401))
+    Err(ErrorEnum::PasswordMismatch.into())
 }
 
 pub async fn create_temp_user(
@@ -76,10 +76,7 @@ pub async fn create_temp_user(
     validation_type: ValidationType,
 ) -> Result<String, Error> {
     if data.email.is_none() && data.mobile_number.is_none() {
-        return Err(Error::new(
-            "Mobile number and email both cannot be empty",
-            400,
-        ));
+        return Err(ErrorEnum::EmailMobileEmpty.into());
     }
 
     let database = MONGO_DB_INSTANCE.get().await;
@@ -91,14 +88,14 @@ pub async fn create_temp_user(
     let parsed_user: UserModel = match validation_type {
         ValidationType::Login => {
             if user.is_none() {
-                return Err(Error::new("User does not exist", 400));
+                return Err(ErrorEnum::UserNotFound.into());
             }
 
             validate_user(data, user.unwrap())
         }
         ValidationType::Signup => {
             if user.is_some() {
-                return Err(Error::new("User already exists", 400));
+                return Err(ErrorEnum::UserAlreadyExists.into());
             }
 
             create_user(data)
@@ -148,6 +145,6 @@ pub async fn validate_by_validation_id(data: ValidateOtpDto) -> Result<AccessTok
 
             create_token(d.user)
         }
-        Err(_) => Err(Error::new("Invalid validation ID", 400)),
+        Err(_) => Err(ErrorEnum::InvalidValidationId.into()),
     }
 }

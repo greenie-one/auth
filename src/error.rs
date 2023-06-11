@@ -13,12 +13,102 @@ use redis::RedisError;
 use serde_json::{json, Error as JsonError};
 use validator::ValidationErrors;
 
-use crate::database::redis::Redis;
+use crate::{
+    database::redis::Redis,
+    structs::{GenericError, WebResponseErrorCustom},
+};
 
 #[derive(Debug)]
-pub struct WebResponseErrorCustom {
-    msg: String,
-    status: u16,
+pub enum ErrorEnum {
+    UnAuthorized,
+    SessionNonExistent,
+    UserAlreadyExists,
+    InvalidValidationId,
+    InvalidRefreshToken,
+    LinkedinTokenUnauthenticated,
+    LinkedinAuthFailed,
+    UserNotFound,
+    ProfileNotFound,
+    ProfileAlreadyExists,
+    UserContactMissing,
+    PasswordMismatch,
+    EmailMobileEmpty,
+    InvalidOTP,
+}
+
+fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
+    match val {
+        ErrorEnum::UnAuthorized => GenericError {
+            message: "Unauthorized",
+            status: 400,
+            code: "GR0001",
+        },
+        ErrorEnum::SessionNonExistent => GenericError {
+            code: "GR0002",
+            message: "Session does not exist",
+            status: 400,
+        },
+        ErrorEnum::UserAlreadyExists => GenericError {
+            code: "GR0003",
+            message: "User already exists",
+            status: 409,
+        },
+        ErrorEnum::InvalidValidationId => GenericError {
+            code: "GR0004",
+            message: "Invalid validation ID",
+            status: 400,
+        },
+        ErrorEnum::InvalidRefreshToken => GenericError {
+            code: "GR0005",
+            message: "Invalid refresh token",
+            status: 400,
+        },
+        ErrorEnum::LinkedinTokenUnauthenticated => GenericError {
+            code: "GR0006",
+            message: "Failed to verify authenticity of token",
+            status: 401,
+        },
+        ErrorEnum::LinkedinAuthFailed => GenericError {
+            code: "GR0007",
+            message: "LinkedIn auth failed, %s: %s",
+            status: 401,
+        },
+        ErrorEnum::UserNotFound => GenericError {
+            code: "GR0008",
+            message: "User not found",
+            status: 404,
+        },
+        ErrorEnum::ProfileNotFound => GenericError {
+            code: "GR0009",
+            message: "Profile not found",
+            status: 404,
+        },
+        ErrorEnum::ProfileAlreadyExists => GenericError {
+            code: "GR0010",
+            message: "Profile already exists",
+            status: 400,
+        },
+        ErrorEnum::UserContactMissing => GenericError {
+            code: "GR0011",
+            message: "Both mobile and email are missing",
+            status: 500,
+        },
+        ErrorEnum::PasswordMismatch => GenericError {
+            code: "GR0012",
+            message: "Invalid user details",
+            status: 401,
+        },
+        ErrorEnum::EmailMobileEmpty => GenericError {
+            code: "GR0013",
+            message: "Mobile number and email both cannot be empty",
+            status: 400,
+        },
+        ErrorEnum::InvalidOTP => GenericError {
+            code: "GR0014",
+            message: "Invalid OTP",
+            status: 400,
+        },
+    }
 }
 
 #[derive(Debug)]
@@ -33,6 +123,7 @@ pub enum Error {
     JWTError(jsonwebtoken::errors::Error),
     ToStrError(ToStrError),
     WebResponseErrorCustom(WebResponseErrorCustom),
+    DefinedError(ErrorEnum),
 }
 
 impl Error {
@@ -68,6 +159,10 @@ impl WebResponseError for Error {
             Error::WebResponseErrorCustom(e) => (json!({ "error": e.msg }), e.status),
             Error::ToStrError(e) => (json!({"error": e.to_string()}), 400),
             Error::MongoOIDError(_) => (json!({"error": "Invalid bson parameter"}), 400),
+            Error::DefinedError(e) => {
+                let error = get_error(e);
+                (serde_json::to_value(&error).unwrap(), error.status)
+            }
         };
         web::HttpResponse::build(StatusCode::from_u16(status).unwrap()).json(&err_json)
     }
@@ -133,5 +228,11 @@ impl From<PoisonError<MutexGuard<'_, Redis>>> for Error {
 impl From<mongodb::bson::oid::Error> for Error {
     fn from(value: mongodb::bson::oid::Error) -> Self {
         Error::MongoOIDError(value)
+    }
+}
+
+impl From<ErrorEnum> for Error {
+    fn from(v: ErrorEnum) -> Self {
+        Self::DefinedError(v)
     }
 }

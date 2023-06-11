@@ -12,7 +12,7 @@ use crate::dtos::change_password_dto::{
 };
 use crate::dtos::signup_dto::CreateUserDto;
 use crate::dtos::validate_otp_dto::ValidateOtpDto;
-use crate::error::Error;
+use crate::error::{Error, ErrorEnum};
 use crate::services::change_password::{initiate_forgot_password, validate_change_password};
 use crate::services::signup::{create_temp_user, validate_by_validation_id, ValidationType};
 use crate::services::token::decode_token;
@@ -33,9 +33,9 @@ async fn validate_token(req: HttpRequest) -> Result<HttpResponse, Error> {
         let claims = decode_token(token_stripped);
         println!("{:?}", claims);
         match claims {
-            Ok(c) => resp.set_header("x-user-details", serde_json::to_string(&c)?),
-            Err(_) => resp.status(StatusCode::UNAUTHORIZED),
-        };
+            Ok(c) => Ok(resp.set_header("x-user-details", serde_json::to_string(&c)?)),
+            Err(_) => Err(ErrorEnum::UnAuthorized),
+        }?;
     }
 
     Ok(resp.finish())
@@ -96,10 +96,10 @@ async fn change_password(
             Ok(c) => {
                 item.validate()?;
                 change_password_service(c.sub, item.into_inner(), false).await?;
-                resp.status(StatusCode::OK)
+                Ok(resp.status(StatusCode::OK))
             }
-            Err(_) => resp.status(StatusCode::UNAUTHORIZED),
-        };
+            Err(_) => Err(ErrorEnum::UnAuthorized),
+        }?;
     }
 
     Ok(resp.finish())

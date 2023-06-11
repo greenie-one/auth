@@ -3,7 +3,7 @@ use rand::{thread_rng, Rng};
 use crate::{
     database::{mongo::UserModel, redis::REDIS_INSTANCE},
     env_config::APP_ENV,
-    error::Error,
+    error::{Error, ErrorEnum},
 };
 
 pub async fn request_otp(user: UserModel) -> Result<(), Error> {
@@ -16,7 +16,7 @@ pub async fn request_otp(user: UserModel) -> Result<(), Error> {
     };
 
     if contact.is_none() {
-        return Err(Error::new("Both mobile and email are missing", 500));
+        return Err(ErrorEnum::UserContactMissing.into());
     }
 
     let otp = format!("{:06}", thread_rng().gen_range(0..999999));
@@ -39,7 +39,7 @@ pub fn validate_otp(user: UserModel, otp: String) -> Result<(), Error> {
     };
 
     if contact.is_none() {
-        return Err(Error::new("Both mobile and email are missing", 500));
+        return Err(ErrorEnum::UserContactMissing.into());
     }
 
     if APP_ENV.as_str() != "production" && otp == "123456" {
@@ -55,5 +55,5 @@ pub fn validate_otp(user: UserModel, otp: String) -> Result<(), Error> {
         return Ok(());
     }
 
-    Err(Error::new("Invalid OTP", 401))
+    Err(ErrorEnum::InvalidOTP.into())
 }
