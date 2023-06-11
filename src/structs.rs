@@ -28,3 +28,9 @@ pub struct AccessTokenResponse {
     #[serde(rename = "refreshToken")]
     pub refresh_token: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChangePasswordValidationData {
+    pub otp: String,
+    pub user_id: String,
+}

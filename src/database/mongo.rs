@@ -1,10 +1,10 @@
-use std::env;
+use std::{env, str::FromStr};
 
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use mongodb::{
     bson::{doc, oid::ObjectId},
-    options::{ClientOptions, FindOneOptions, InsertOneOptions},
+    options::ClientOptions,
     results::InsertOneResult,
     Client, Database,
 };
@@ -58,7 +58,7 @@ impl MongoDB {
         let mut filter = doc! {};
 
         if id.is_some() {
-            filter.insert("_id", id.unwrap());
+            filter.insert("_id", ObjectId::from_str(&id.unwrap()).unwrap());
         }
 
         if email.is_some() {
@@ -69,18 +69,32 @@ impl MongoDB {
             filter.insert("mobileNumber", mobile.unwrap());
         }
 
-        let found = collection
-            .find_one(filter, FindOneOptions::default())
-            .await?;
+        let found = collection.find_one(filter, None).await?;
 
         Ok(found)
     }
 
+    pub async fn update_password(
+        &self,
+        user_id: String,
+        password: String,
+    ) -> Result<Option<UserModel>, Error> {
+        let collection: mongodb::Collection<UserModel> = self.connection.collection("users");
+
+        println!("Got new hash {}", password);
+
+        let filter = doc! {
+            "_id": user_id
+        };
+        collection
+            .find_one_and_update(filter, doc! { "$set" : { "password": password } }, None)
+            .await
+            .map_err(|e| e.into())
+    }
+
     pub async fn create_user(&self, user: UserModel) -> Result<InsertOneResult, Error> {
         let collection: mongodb::Collection<UserModel> = self.connection.collection("users");
-        let res = collection
-            .insert_one(user, InsertOneOptions::default())
-            .await?;
+        let res = collection.insert_one(user, None).await?;
 
         Ok(res)
     }

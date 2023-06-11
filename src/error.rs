@@ -1,5 +1,6 @@
 use std::{
     fmt::{self, Display, Formatter},
+    sync::{MutexGuard, PoisonError},
     time::SystemTimeError,
 };
 
@@ -11,6 +12,8 @@ use redis::RedisError;
 
 use serde_json::{json, Error as JsonError};
 use validator::ValidationErrors;
+
+use crate::database::redis::Redis;
 
 #[derive(Debug)]
 pub struct WebResponseErrorCustom {
@@ -113,5 +116,14 @@ impl From<jsonwebtoken::errors::Error> for Error {
 impl From<ToStrError> for Error {
     fn from(value: ToStrError) -> Self {
         Error::ToStrError(value)
+    }
+}
+
+impl From<PoisonError<MutexGuard<'_, Redis>>> for Error {
+    fn from(value: PoisonError<MutexGuard<'_, Redis>>) -> Self {
+        Error::WebResponseErrorCustom(WebResponseErrorCustom {
+            msg: value.to_string(),
+            status: 500,
+        })
     }
 }
