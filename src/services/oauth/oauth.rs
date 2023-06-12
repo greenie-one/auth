@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 use serde::{Serialize, Deserialize};
 
-use crate::{error::{Error, ErrorEnum}, database::mongo::UserModel};
+use crate::{error::{Error, ErrorEnum}};
 
 use super::{google::GoogleProvider, linkedin::LinkedInProvider};
 

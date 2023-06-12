@@ -7,7 +7,7 @@ pub async fn get_refreshed_tokens(refresh_token: &str) -> Result<AccessTokenResp
     if claims.is_refresh.unwrap_or(false) {
         return get_new_tokens(claims.sub).await;
     }
-    return Err(ErrorEnum::UnAuthorized.into())
+    return Err(ErrorEnum::InvalidRefreshToken.into())
 }
 
 async fn get_new_tokens(user_id: String) -> Result<AccessTokenResponse, Error> {

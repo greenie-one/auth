@@ -16,21 +16,16 @@ use validator::ValidationErrors;
 
 use crate::{
     database::{redis::Redis, mongo::UserModel},
-    structs::{GenericError, WebResponseErrorCustom}, services::oauth,
+    structs::{GenericError, WebResponseErrorCustom},
 };
 
 #[derive(Debug)]
 pub enum ErrorEnum {
     UnAuthorized,
-    SessionNonExistent,
     UserAlreadyExists(UserModel),
     InvalidValidationId,
     InvalidRefreshToken,
-    LinkedinTokenUnauthenticated,
-    LinkedinAuthFailed,
     UserNotFound,
-    ProfileNotFound,
-    ProfileAlreadyExists,
     UserContactMissing,
     PasswordMismatch,
     EmailMobileEmpty,
@@ -48,11 +43,6 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
             status: 400,
             code: "GRA0001",
         },
-        ErrorEnum::SessionNonExistent => GenericError {
-            code: "GRA0002",
-            message: "Session does not exist".to_string(),
-            status: 400,
-        },
         ErrorEnum::UserAlreadyExists(_) => GenericError {
             code: "GRA0003",
             message: "User already exists".to_string(),
@@ -68,30 +58,10 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
             message: "Invalid refresh token".to_string(),
             status: 400,
         },
-        ErrorEnum::LinkedinTokenUnauthenticated => GenericError {
-            code: "GRA0006",
-            message: "Failed to verify authenticity of token".to_string(),
-            status: 401,
-        },
-        ErrorEnum::LinkedinAuthFailed => GenericError {
-            code: "GRA0007",
-            message: "LinkedIn auth failed, %s: %s".to_string(),
-            status: 401,
-        },
         ErrorEnum::UserNotFound => GenericError {
             code: "GRA0008",
             message: "User not found".to_string(),
             status: 404,
-        },
-        ErrorEnum::ProfileNotFound => GenericError {
-            code: "GRA0009",
-            message: "Profile not found".to_string(),
-            status: 404,
-        },
-        ErrorEnum::ProfileAlreadyExists => GenericError {
-            code: "GRA0010",
-            message: "Profile already exists".to_string(),
-            status: 400,
         },
         ErrorEnum::UserContactMissing => GenericError {
             code: "GRA0011",
