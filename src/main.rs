@@ -1,10 +1,12 @@
 use std::{env, io};
 
+use dtos::refresh_dto::RefreshTokenDto;
 use ntex::http::StatusCode;
 
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use serde_json::json;
 use services::change_password::change_password as change_password_service;
+use services::refresh::get_refreshed_tokens;
 use validator::Validate;
 
 use crate::dtos::change_password_dto::{
@@ -105,6 +107,14 @@ async fn change_password(
     Ok(resp.finish())
 }
 
+async fn refresh_token(refresh_token: web::types::Query<RefreshTokenDto>) -> Result<HttpResponse, Error>  {
+    refresh_token.validate()?;
+
+    let data = get_refreshed_tokens(&refresh_token.refresh_token).await?;
+
+    Ok(HttpResponse::build(StatusCode::OK).json(&data))
+}
+
 fn get_route(route: &str) -> String {
     let app_env = std::env::var("APP_ENV").expect("APP_ENV should be defined");
     if app_env == "local" {
@@ -127,6 +137,10 @@ async fn main() -> io::Result<()> {
             .route(
                 get_route("/validate_token").as_str(),
                 web::get().to(validate_token),
+            )
+            .route(
+                get_route("/refresh").as_str(),
+                web::get().to(refresh_token),
             )
             .route(get_route("/login").as_str(), web::post().to(login))
             .route(

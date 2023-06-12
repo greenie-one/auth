@@ -22,11 +22,13 @@ pub struct TokenClaims {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccessTokenResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "accessToken")]
-    pub access_token: String,
+    pub access_token: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "refreshToken")]
-    pub refresh_token: String,
+    pub refresh_token: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

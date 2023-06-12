@@ -9,7 +9,7 @@ use jsonwebtoken::{
 
 use crate::{
     database::mongo::UserModel,
-    error::Error,
+    error::{Error, ErrorEnum},
     structs::{AccessTokenResponse, TokenClaims},
 };
 
@@ -41,6 +41,11 @@ pub fn decode_token(token: &str) -> Result<TokenClaims, Error> {
     let validation = Validation::new(Algorithm::RS256);
     let token_claims: TokenData<TokenClaims> = decode(token, &TOKEN_KEYS.1, &validation)?;
 
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    if token_claims.claims.exp < now {
+        return Err(ErrorEnum::TokenExpired.into());
+    }
+
     Ok(token_claims.claims)
 }
 
@@ -70,7 +75,7 @@ pub fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
     let refresh_token = encode(&header, &refresh_claims, &TOKEN_KEYS.0)?;
 
     Ok(AccessTokenResponse {
-        access_token,
-        refresh_token,
+        access_token: Some(access_token),
+        refresh_token: Some(refresh_token),
     })
 }

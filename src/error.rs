@@ -34,6 +34,7 @@ pub enum ErrorEnum {
     PasswordMismatch,
     EmailMobileEmpty,
     InvalidOTP,
+    TokenExpired
 }
 
 fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
@@ -108,6 +109,11 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
             message: "Invalid OTP",
             status: 400,
         },
+        ErrorEnum::TokenExpired => GenericError {
+            code: "GRA0015",
+            message: "Auth token is expired",
+            status: 401,
+        },
     }
 }
 
@@ -152,7 +158,10 @@ impl WebResponseError for Error {
             | Error::SystemTimeError(_)
             | Error::JsonError(_) => (json!({ "error": "Internal server error" }), 500),
 
-            Error::JWTError(_) => (json!("Unauthorized"), 401),
+            Error::JWTError(_) => {
+                let error = get_error(&ErrorEnum::UnAuthorized);
+                (serde_json::to_value(&error).unwrap(), error.status)
+            },
 
             Error::ValidationErrors(e) => (json!({"error": e.to_string()}), 400),
 
