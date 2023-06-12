@@ -108,7 +108,9 @@ async fn change_password(
     Ok(resp.finish())
 }
 
-async fn refresh_token(refresh_token: web::types::Query<RefreshTokenDto>) -> Result<HttpResponse, Error>  {
+async fn refresh_token(
+    refresh_token: web::types::Query<RefreshTokenDto>,
+) -> Result<HttpResponse, Error> {
     refresh_token.validate()?;
 
     let data = get_refreshed_tokens(&refresh_token.refresh_token).await?;
@@ -120,12 +122,17 @@ async fn get_oauth_redirect_uri(provider: web::types::Path<String>) -> Result<Ht
     let provider = get_provider(provider.as_str())?;
     let url = provider.get_redirect_uri()?;
 
-    Ok(HttpResponse::build(StatusCode::OK).json(&json!({"redirectUrl": url})))
+    Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "redirectUrl": url })))
 }
 
-async fn handle_google_callback(provider: web::types::Path<String>, req: HttpRequest) -> Result<HttpResponse, Error> {
+async fn handle_oauth_callback(
+    provider: web::types::Path<String>,
+    req: HttpRequest,
+) -> Result<HttpResponse, Error> {
     let provider = get_provider(provider.as_str())?;
-    let data = provider.handle_login(format!("https://greenie.one/{}", req.uri().to_string())).await?;
+    let data = provider
+        .handle_login(format!("https://greenie.one/{}", req.uri().to_string()))
+        .await?;
 
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
 }
@@ -153,10 +160,7 @@ async fn main() -> io::Result<()> {
                 get_route("/validate_token").as_str(),
                 web::get().to(validate_token),
             )
-            .route(
-                get_route("/refresh").as_str(),
-                web::get().to(refresh_token),
-            )
+            .route(get_route("/refresh").as_str(), web::get().to(refresh_token))
             .route(get_route("/login").as_str(), web::post().to(login))
             .route(
                 get_route("/validateOTP").as_str(),
@@ -180,7 +184,7 @@ async fn main() -> io::Result<()> {
             )
             .route(
                 get_route("/callback/{provider}").as_str(),
-                web::get().to(handle_google_callback),
+                web::get().to(handle_oauth_callback),
             )
     })
     .bind("0.0.0.0:8080")?

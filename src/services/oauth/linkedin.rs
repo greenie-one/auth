@@ -3,7 +3,7 @@ use url::Url;
 
 use crate::error::{Error, ErrorEnum};
 
-use super::oauth::{OAuthProviders, OAuthLoginResponse};
+use super::oauth::{OAuthLoginResponse, OAuthProviders};
 
 pub struct LinkedInProvider;
 
@@ -22,7 +22,7 @@ impl OAuthProviders for LinkedInProvider {
         Ok(url.to_string())
     }
 
-    async fn handle_login(&self, _url: String) -> Result<OAuthLoginResponse,Error> {
+    async fn handle_login(&self, _url: String) -> Result<OAuthLoginResponse, Error> {
         Err(ErrorEnum::NotYetImplemented.into())
     }
 }

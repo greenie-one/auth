@@ -51,7 +51,10 @@ fn parse_user(data: CreateUserDto) -> Result<UserModel, Error> {
     })
 }
 
-fn parse_and_validate_user(data: CreateUserDto, existing_user: UserModel) -> Result<UserModel, Error> {
+fn parse_and_validate_user(
+    data: CreateUserDto,
+    existing_user: UserModel,
+) -> Result<UserModel, Error> {
     let mut verify: bool = false;
     if data.email.is_some() {
         verify = bcrypt::verify(
@@ -122,19 +125,16 @@ pub async fn create_temp_user(
 }
 
 pub async fn insert_user(mut user: UserModel) -> Result<UserModel, Error> {
+    let mongodb = MONGO_DB_INSTANCE.get().await;
 
-    let mongodb = MONGO_DB_INSTANCE
-    .get()
-    .await;
-
-    let existing = mongodb.find_user(user.clone().email, user.clone().mobile_number, None).await?;
+    let existing = mongodb
+        .find_user(user.clone().email, user.clone().mobile_number, None)
+        .await?;
     if existing.is_some() {
         return Err(ErrorEnum::UserAlreadyExists(existing.unwrap()).into());
     }
 
-    let _id = mongodb
-    .create_user(user.clone())
-    .await?;
+    let _id = mongodb.create_user(user.clone()).await?;
 
     user._id = _id.inserted_id.as_object_id();
 

@@ -1,13 +1,17 @@
-use crate::{error::{Error, ErrorEnum}, database::mongo::MONGO_DB_INSTANCE, structs::AccessTokenResponse};
+use crate::{
+    database::mongo::MONGO_DB_INSTANCE,
+    error::{Error, ErrorEnum},
+    structs::AccessTokenResponse,
+};
 
-use super::token::{decode_token, create_token};
+use super::token::{create_token, decode_token};
 
 pub async fn get_refreshed_tokens(refresh_token: &str) -> Result<AccessTokenResponse, Error> {
     let claims = decode_token(refresh_token)?;
     if claims.is_refresh.unwrap_or(false) {
         return get_new_tokens(claims.sub).await;
     }
-    return Err(ErrorEnum::InvalidRefreshToken.into())
+    return Err(ErrorEnum::InvalidRefreshToken.into());
 }
 
 async fn get_new_tokens(user_id: String) -> Result<AccessTokenResponse, Error> {

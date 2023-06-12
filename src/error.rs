@@ -1,7 +1,8 @@
 use std::{
+    env::VarError,
     fmt::{self, Display, Formatter},
     sync::{MutexGuard, PoisonError},
-    time::SystemTimeError, env::VarError,
+    time::SystemTimeError,
 };
 
 use ntex::{
@@ -15,7 +16,7 @@ use url::ParseError;
 use validator::ValidationErrors;
 
 use crate::{
-    database::{redis::Redis, mongo::UserModel},
+    database::{mongo::UserModel, redis::Redis},
     structs::{GenericError, WebResponseErrorCustom},
 };
 
@@ -34,7 +35,7 @@ pub enum ErrorEnum {
     OAuthProviderNotFound,
     OAuthFailed(String),
     NotYetImplemented,
-    ValidationError(String)
+    ValidationError(String),
 }
 
 fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
@@ -127,7 +128,7 @@ pub enum Error {
     DefinedError(ErrorEnum),
     ParseError(ParseError),
     VarError(VarError),
-    ReqwestError(reqwest::Error)
+    ReqwestError(reqwest::Error),
 }
 
 impl Error {
@@ -162,12 +163,12 @@ impl WebResponseError for Error {
             Error::JWTError(_) => {
                 let error = get_error(&ErrorEnum::UnAuthorized);
                 (serde_json::to_value(&error).unwrap(), error.status)
-            },
+            }
 
             Error::ValidationErrors(e) => {
                 let error = get_error(&ErrorEnum::ValidationError(e.to_string()));
                 (serde_json::to_value(&error).unwrap(), error.status)
-            },
+            }
 
             Error::WebResponseErrorCustom(e) => (json!({ "error": e.msg }), e.status),
             Error::ToStrError(e) => (json!({"error": e.to_string()}), 400),

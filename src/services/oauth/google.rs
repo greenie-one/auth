@@ -35,7 +35,7 @@ pub struct GoogleAccessTokenResponse {
 #[derive(Debug, Deserialize)]
 pub struct GoogleAccessTokenClaims {
     exp: u64,
-    email:  Option<String>,
+    email: Option<String>,
     given_name: Option<String>,
     family_name: Option<String>,
 }
@@ -134,7 +134,7 @@ impl OAuthProviders for GoogleProvider {
         let code_opt = url.query_pairs().find(|v| v.0 == "code");
 
         if code_opt.is_none() {
-            return Err(ErrorEnum::ValidationError("code cannot be empty".to_string()).into())
+            return Err(ErrorEnum::ValidationError("code cannot be empty".to_string()).into());
         }
 
         let code = code_opt.unwrap();
@@ -151,15 +151,11 @@ impl OAuthProviders for GoogleProvider {
         let insert_user_resp = insert_user(user.clone()).await;
         if insert_user_resp.is_err() {
             user = match insert_user_resp.unwrap_err() {
-                Error::DefinedError(e) => {
-                    match e {
-                        ErrorEnum::UserAlreadyExists(u) => {
-                            Ok(u)
-                        },
-                        _ => Err(Error::DefinedError(e))
-                    }
+                Error::DefinedError(e) => match e {
+                    ErrorEnum::UserAlreadyExists(u) => Ok(u),
+                    _ => Err(Error::DefinedError(e)),
                 },
-             e => Err(e)
+                e => Err(e),
             }?;
         }
 
@@ -170,8 +166,8 @@ impl OAuthProviders for GoogleProvider {
             refresh_token: token.refresh_token,
             profile_hints: ProfileHints {
                 first_name: access_token_claims.given_name,
-                last_name: access_token_claims.family_name
-            }
+                last_name: access_token_claims.family_name,
+            },
         })
     }
 }
