@@ -89,8 +89,6 @@ impl MongoDB {
             "_id": parsed_user_id
         };
 
-        let doc = doc! { "$set" : { "password": password.clone() } };
-
         collection
             .find_one_and_update(filter, doc! { "$set" : { "password": password } }, None)
             .await

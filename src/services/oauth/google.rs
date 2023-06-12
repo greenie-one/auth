@@ -131,8 +131,13 @@ impl OAuthProviders for GoogleProvider {
 
     async fn handle_login(&self, url: String) -> Result<OAuthLoginResponse, Error> {
         let url = Url::from_str(&url)?;
-        let code = url.query_pairs().find(|v| v.0 == "code").unwrap();
+        let code_opt = url.query_pairs().find(|v| v.0 == "code");
 
+        if code_opt.is_none() {
+            return Err(ErrorEnum::ValidationError("code cannot be empty".to_string()).into())
+        }
+
+        let code = code_opt.unwrap();
         let access_token_claims = self.get_access_token_claims(code.1).await?;
 
         let mut user = UserModel {

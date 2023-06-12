@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::{env, io};
 
 use dtos::refresh_dto::RefreshTokenDto;
@@ -117,15 +116,15 @@ async fn refresh_token(refresh_token: web::types::Query<RefreshTokenDto>) -> Res
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
 }
 
-async fn get_oauth_redirect_uri() -> Result<HttpResponse, Error> {
-    let provider = get_provider("google")?;
+async fn get_oauth_redirect_uri(provider: web::types::Path<String>) -> Result<HttpResponse, Error> {
+    let provider = get_provider(provider.as_str())?;
     let url = provider.get_redirect_uri()?;
 
     Ok(HttpResponse::build(StatusCode::OK).json(&json!({"redirectUrl": url})))
 }
 
-async fn handle_google_callback(req: HttpRequest) -> Result<HttpResponse, Error> {
-    let provider = get_provider("google")?;
+async fn handle_google_callback(provider: web::types::Path<String>, req: HttpRequest) -> Result<HttpResponse, Error> {
+    let provider = get_provider(provider.as_str())?;
     let data = provider.handle_login(format!("https://greenie.one/{}", req.uri().to_string())).await?;
 
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
@@ -176,11 +175,11 @@ async fn main() -> io::Result<()> {
                 web::post().to(change_password),
             )
             .route(
-                get_route("/get_redirect_uri").as_str(),
+                get_route("/redirect/{provider}").as_str(),
                 web::get().to(get_oauth_redirect_uri),
             )
             .route(
-                get_route("/callback/google").as_str(),
+                get_route("/callback/{provider}").as_str(),
                 web::get().to(handle_google_callback),
             )
     })

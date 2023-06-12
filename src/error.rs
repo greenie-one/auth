@@ -33,11 +33,17 @@ pub enum ErrorEnum {
     TokenExpired,
     OAuthProviderNotFound,
     OAuthFailed(String),
-    NotYetImplemented
+    NotYetImplemented,
+    ValidationError(String)
 }
 
 fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
     match val {
+        ErrorEnum::ValidationError(e) => GenericError {
+            code: "GRA0000",
+            message: format!("Failed to validate request: [{}]", e),
+            status: 400,
+        },
         ErrorEnum::UnAuthorized => GenericError {
             message: "Unauthorized".to_string(),
             status: 400,
@@ -158,7 +164,10 @@ impl WebResponseError for Error {
                 (serde_json::to_value(&error).unwrap(), error.status)
             },
 
-            Error::ValidationErrors(e) => (json!({"error": e.to_string()}), 400),
+            Error::ValidationErrors(e) => {
+                let error = get_error(&ErrorEnum::ValidationError(e.to_string()));
+                (serde_json::to_value(&error).unwrap(), error.status)
+            },
 
             Error::WebResponseErrorCustom(e) => (json!({ "error": e.msg }), e.status),
             Error::ToStrError(e) => (json!({"error": e.to_string()}), 400),
