@@ -3,3 +3,4 @@ pub mod signup;
 pub mod token;
 pub mod validate_otp;
 pub mod refresh;
+pub mod oauth;

@@ -35,7 +35,7 @@ impl fmt::Display for ValidationType {
     }
 }
 
-fn create_user(data: CreateUserDto) -> Result<UserModel, Error> {
+fn parse_user(data: CreateUserDto) -> Result<UserModel, Error> {
     let hashed_password = if data.password.is_some() {
         Some(bcrypt::hash(data.password.unwrap(), bcrypt::DEFAULT_COST)?)
     } else {
@@ -51,7 +51,7 @@ fn create_user(data: CreateUserDto) -> Result<UserModel, Error> {
     })
 }
 
-fn validate_user(data: CreateUserDto, existing_user: UserModel) -> Result<UserModel, Error> {
+fn parse_and_validate_user(data: CreateUserDto, existing_user: UserModel) -> Result<UserModel, Error> {
     let mut verify: bool = false;
     if data.email.is_some() {
         verify = bcrypt::verify(
@@ -91,14 +91,14 @@ pub async fn create_temp_user(
                 return Err(ErrorEnum::UserNotFound.into());
             }
 
-            validate_user(data, user.unwrap())
+            parse_and_validate_user(data, user.unwrap())
         }
         ValidationType::Signup => {
             if user.is_some() {
-                return Err(ErrorEnum::UserAlreadyExists.into());
+                return Err(ErrorEnum::UserAlreadyExists(user.unwrap()).into());
             }
 
-            create_user(data)
+            parse_user(data)
         }
     }?;
 
@@ -121,6 +121,26 @@ pub async fn create_temp_user(
     Ok(validation_id)
 }
 
+pub async fn insert_user(mut user: UserModel) -> Result<UserModel, Error> {
+
+    let mongodb = MONGO_DB_INSTANCE
+    .get()
+    .await;
+
+    let existing = mongodb.find_user(user.clone().email, user.clone().mobile_number, None).await?;
+    if existing.is_some() {
+        return Err(ErrorEnum::UserAlreadyExists(existing.unwrap()).into());
+    }
+
+    let _id = mongodb
+    .create_user(user.clone())
+    .await?;
+
+    user._id = _id.inserted_id.as_object_id();
+
+    Ok(user)
+}
+
 pub async fn validate_by_validation_id(data: ValidateOtpDto) -> Result<AccessTokenResponse, Error> {
     let validation_key = format!("validation_{}", data.validation_id);
     let validation_data: Result<ValidationData, Error> = REDIS_INSTANCE
@@ -135,12 +155,7 @@ pub async fn validate_by_validation_id(data: ValidateOtpDto) -> Result<AccessTok
             REDIS_INSTANCE.lock().unwrap().del(validation_key)?;
 
             if d.validation_type.eq(&ValidationType::Signup) {
-                let _id = MONGO_DB_INSTANCE
-                    .get()
-                    .await
-                    .create_user(d.user.clone())
-                    .await?;
-                d.user._id = _id.inserted_id.as_object_id();
+                d.user = insert_user(d.user).await?;
             }
 
             create_token(d.user)

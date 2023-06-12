@@ -45,7 +45,7 @@ pub struct WebResponseErrorCustom {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GenericError<'a> {
-    pub message: &'a str,
+    pub message: String,
     pub status: u16,
     pub code: &'a str,
 }

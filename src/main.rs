@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::{env, io};
 
 use dtos::refresh_dto::RefreshTokenDto;
@@ -6,6 +7,7 @@ use ntex::http::StatusCode;
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use serde_json::json;
 use services::change_password::change_password as change_password_service;
+use services::oauth::oauth::{get_provider, OAuthProviders};
 use services::refresh::get_refreshed_tokens;
 use validator::Validate;
 
@@ -115,6 +117,20 @@ async fn refresh_token(refresh_token: web::types::Query<RefreshTokenDto>) -> Res
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
 }
 
+async fn get_oauth_redirect_uri() -> Result<HttpResponse, Error> {
+    let provider = get_provider("google")?;
+    let url = provider.get_redirect_uri()?;
+
+    Ok(HttpResponse::build(StatusCode::OK).json(&json!({"redirectUrl": url})))
+}
+
+async fn handle_google_callback(req: HttpRequest) -> Result<HttpResponse, Error> {
+    let provider = get_provider("google")?;
+    let data = provider.handle_login(format!("https://greenie.one/{}", req.uri().to_string())).await?;
+
+    Ok(HttpResponse::build(StatusCode::OK).json(&data))
+}
+
 fn get_route(route: &str) -> String {
     let app_env = std::env::var("APP_ENV").expect("APP_ENV should be defined");
     if app_env == "local" {
@@ -158,6 +174,14 @@ async fn main() -> io::Result<()> {
             .route(
                 get_route("/change_password").as_str(),
                 web::post().to(change_password),
+            )
+            .route(
+                get_route("/get_redirect_uri").as_str(),
+                web::get().to(get_oauth_redirect_uri),
+            )
+            .route(
+                get_route("/callback/google").as_str(),
+                web::get().to(handle_google_callback),
             )
     })
     .bind("0.0.0.0:8080")?

@@ -1,7 +1,7 @@
 use std::{
     fmt::{self, Display, Formatter},
     sync::{MutexGuard, PoisonError},
-    time::SystemTimeError,
+    time::SystemTimeError, env::VarError,
 };
 
 use ntex::{
@@ -11,18 +11,19 @@ use ntex::{
 use redis::RedisError;
 
 use serde_json::{json, Error as JsonError};
+use url::ParseError;
 use validator::ValidationErrors;
 
 use crate::{
-    database::redis::Redis,
-    structs::{GenericError, WebResponseErrorCustom},
+    database::{redis::Redis, mongo::UserModel},
+    structs::{GenericError, WebResponseErrorCustom}, services::oauth,
 };
 
 #[derive(Debug)]
 pub enum ErrorEnum {
     UnAuthorized,
     SessionNonExistent,
-    UserAlreadyExists,
+    UserAlreadyExists(UserModel),
     InvalidValidationId,
     InvalidRefreshToken,
     LinkedinTokenUnauthenticated,
@@ -34,85 +35,103 @@ pub enum ErrorEnum {
     PasswordMismatch,
     EmailMobileEmpty,
     InvalidOTP,
-    TokenExpired
+    TokenExpired,
+    OAuthProviderNotFound,
+    OAuthFailed(String),
+    NotYetImplemented
 }
 
 fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
     match val {
         ErrorEnum::UnAuthorized => GenericError {
-            message: "Unauthorized",
+            message: "Unauthorized".to_string(),
             status: 400,
             code: "GRA0001",
         },
         ErrorEnum::SessionNonExistent => GenericError {
             code: "GRA0002",
-            message: "Session does not exist",
+            message: "Session does not exist".to_string(),
             status: 400,
         },
-        ErrorEnum::UserAlreadyExists => GenericError {
+        ErrorEnum::UserAlreadyExists(_) => GenericError {
             code: "GRA0003",
-            message: "User already exists",
+            message: "User already exists".to_string(),
             status: 409,
         },
         ErrorEnum::InvalidValidationId => GenericError {
             code: "GRA0004",
-            message: "Invalid validation ID",
+            message: "Invalid validation ID".to_string(),
             status: 400,
         },
         ErrorEnum::InvalidRefreshToken => GenericError {
             code: "GRA0005",
-            message: "Invalid refresh token",
+            message: "Invalid refresh token".to_string(),
             status: 400,
         },
         ErrorEnum::LinkedinTokenUnauthenticated => GenericError {
             code: "GRA0006",
-            message: "Failed to verify authenticity of token",
+            message: "Failed to verify authenticity of token".to_string(),
             status: 401,
         },
         ErrorEnum::LinkedinAuthFailed => GenericError {
             code: "GRA0007",
-            message: "LinkedIn auth failed, %s: %s",
+            message: "LinkedIn auth failed, %s: %s".to_string(),
             status: 401,
         },
         ErrorEnum::UserNotFound => GenericError {
             code: "GRA0008",
-            message: "User not found",
+            message: "User not found".to_string(),
             status: 404,
         },
         ErrorEnum::ProfileNotFound => GenericError {
             code: "GRA0009",
-            message: "Profile not found",
+            message: "Profile not found".to_string(),
             status: 404,
         },
         ErrorEnum::ProfileAlreadyExists => GenericError {
             code: "GRA0010",
-            message: "Profile already exists",
+            message: "Profile already exists".to_string(),
             status: 400,
         },
         ErrorEnum::UserContactMissing => GenericError {
             code: "GRA0011",
-            message: "Both mobile and email are missing",
+            message: "Both mobile and email are missing".to_string(),
             status: 500,
         },
         ErrorEnum::PasswordMismatch => GenericError {
             code: "GRA0012",
-            message: "Invalid user details",
+            message: "Invalid user details".to_string(),
             status: 401,
         },
         ErrorEnum::EmailMobileEmpty => GenericError {
             code: "GRA0013",
-            message: "Mobile number and email both cannot be empty",
+            message: "Mobile number and email both cannot be empty".to_string(),
             status: 400,
         },
         ErrorEnum::InvalidOTP => GenericError {
             code: "GRA0014",
-            message: "Invalid OTP",
+            message: "Invalid OTP".to_string(),
             status: 400,
         },
         ErrorEnum::TokenExpired => GenericError {
             code: "GRA0015",
-            message: "Auth token is expired",
+            message: "Auth token is expired".to_string(),
             status: 401,
+        },
+        ErrorEnum::OAuthProviderNotFound => GenericError {
+            code: "GRA0016",
+            message: "OAuth invalid provider".to_string(),
+            status: 400,
+        },
+        ErrorEnum::OAuthFailed(e) => GenericError {
+            code: "GRA0017",
+            message: format!("OAuth failed: {}", e),
+            status: 500,
+        },
+        ErrorEnum::NotYetImplemented => GenericError {
+            code: "GRA9999",
+            message: "Feature not yet implemented".to_string(),
+            status: 500,
         },
     }
 }
@@ -130,6 +149,9 @@ pub enum Error {
     ToStrError(ToStrError),
     WebResponseErrorCustom(WebResponseErrorCustom),
     DefinedError(ErrorEnum),
+    ParseError(ParseError),
+    VarError(VarError),
+    ReqwestError(reqwest::Error)
 }
 
 impl Error {
@@ -156,6 +178,9 @@ impl WebResponseError for Error {
             | Error::RedisError(_)
             | Error::BcryptError(_)
             | Error::SystemTimeError(_)
+            | Error::ParseError(_)
+            | Error::VarError(_)
+            | Error::ReqwestError(_)
             | Error::JsonError(_) => (json!({ "error": "Internal server error" }), 500),
 
             Error::JWTError(_) => {
@@ -243,5 +268,23 @@ impl From<mongodb::bson::oid::Error> for Error {
 impl From<ErrorEnum> for Error {
     fn from(v: ErrorEnum) -> Self {
         Self::DefinedError(v)
+    }
+}
+
+impl From<ParseError> for Error {
+    fn from(value: ParseError) -> Self {
+        Error::ParseError(value)
+    }
+}
+
+impl From<VarError> for Error {
+    fn from(value: VarError) -> Self {
+        Error::VarError(value)
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(value: reqwest::Error) -> Self {
+        Error::ReqwestError(value)
     }
 }
