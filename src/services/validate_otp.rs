@@ -7,7 +7,7 @@ use crate::{
     remote::otp::{send_otp, ContactType},
 };
 
-pub async fn request_otp(user: UserModel, requireEmailOtp: bool) -> Result<(), Error> {
+pub async fn request_otp(user: UserModel, require_email_otp: bool) -> Result<(), Error> {
     let (contact, contact_type) = if user.mobile_number.is_some() {
         (user.mobile_number, ContactType::MOBILE)
     } else if user.email.is_some() {
@@ -26,7 +26,7 @@ pub async fn request_otp(user: UserModel, requireEmailOtp: bool) -> Result<(), E
         .set_ex(format!("{}_otp", contact), 5 * 60, otp.clone())?;
 
     if contact_type == ContactType::MOBILE
-        || (contact_type == ContactType::EMAIL && requireEmailOtp)
+        || (contact_type == ContactType::EMAIL && require_email_otp)
     {
         send_otp(contact, otp, contact_type).await?;
     }
