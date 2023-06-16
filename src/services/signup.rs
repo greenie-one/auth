@@ -20,7 +20,7 @@ use super::{
     validate_otp::{request_otp, validate_otp},
 };
 
-#[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum ValidationType {
     Login,
     Signup,
@@ -106,7 +106,6 @@ pub async fn create_temp_user(
     }?;
 
     let validation_id = Uuid::new_v4().to_string();
-    let validation_type = validation_type;
 
     let validation_data = ValidationData {
         validation_type,
@@ -119,7 +118,7 @@ pub async fn create_temp_user(
         serde_json::to_string(&validation_data)?.to_string(),
     )?;
 
-    spawn(async { request_otp(parsed_user).await });
+    spawn(async move { request_otp(parsed_user, validation_type == ValidationType::Signup).await });
 
     Ok(validation_id)
 }

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 env_logger = { default-features = false, version = "0.10.0" }
-ntex = { version = "0.6.7", features = ["async-std"], default-features = false }
+ntex = { version = "0.6.7", features = ["tokio"], default-features = false }
 mongodb = { version = "2.5.0", features = ["async-std-runtime"], default-features = false }
 redis = { version = "0.23.0", default-features = false }
 lazy_static = "1.4.0"

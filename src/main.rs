@@ -24,6 +24,7 @@ mod database;
 mod dtos;
 mod env_config;
 mod error;
+mod remote;
 mod services;
 mod structs;
 

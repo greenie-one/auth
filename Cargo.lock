@@ -1308,7 +1308,6 @@ dependencies = [
  "log",
  "mime",
  "nanorand",
- "ntex-async-std",
  "ntex-bytes",
  "ntex-codec",
  "ntex-connect",
@@ -1320,6 +1319,7 @@ dependencies = [
  "ntex-rt",
  "ntex-service",
  "ntex-tls",
+ "ntex-tokio",
  "ntex-util",
  "num_cpus",
  "percent-encoding",
@@ -1332,21 +1332,6 @@ dependencies = [
  "sha-1",
  "socket2 0.5.3",
  "thiserror",
-]
-
-[[package]]
-name = "ntex-async-std"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e984625782348a5bc423eb9bc72923a70b95cf5e849079e09a785c9f411f87d1"
-dependencies = [
- "async-oneshot",
- "async-std",
- "log",
- "ntex-bytes",
- "ntex-io",
- "ntex-util",
- "pin-project-lite",
 ]
 
 [[package]]
@@ -1377,13 +1362,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ebeb43837a991a064a929e5bc3616abe6ceac1e336d6ced721f0ca94afee5fc"
 dependencies = [
  "log",
- "ntex-async-std",
  "ntex-bytes",
  "ntex-http",
  "ntex-io",
  "ntex-rt",
  "ntex-service",
  "ntex-tls",
+ "ntex-tokio",
  "ntex-util",
  "thiserror",
 ]
@@ -1469,9 +1454,9 @@ checksum = "04f780c84494da078bdfa1567964a2fb3ca044859a2af61e01b3ee6892a8836a"
 dependencies = [
  "async-channel",
  "async-oneshot",
- "async-std",
  "futures-core",
  "log",
+ "tokio",
 ]
 
 [[package]]
@@ -1495,6 +1480,20 @@ dependencies = [
  "ntex-service",
  "ntex-util",
  "pin-project-lite",
+]
+
+[[package]]
+name = "ntex-tokio"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e996405b96658c8dce71fb1006f72dd967f55856d04a62b9e0cf5099c6dbfdb5"
+dependencies = [
+ "log",
+ "ntex-bytes",
+ "ntex-io",
+ "ntex-util",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
@@ -2353,6 +2352,7 @@ dependencies = [
  "mio",
  "num_cpus",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2 0.4.9",
  "tokio-macros",
  "windows-sys 0.48.0",

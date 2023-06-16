@@ -4,27 +4,32 @@ use crate::{
     database::{mongo::UserModel, redis::REDIS_INSTANCE},
     env_config::APP_ENV,
     error::{Error, ErrorEnum},
+    remote::otp::{send_otp, ContactType},
 };
 
-pub async fn request_otp(user: UserModel) -> Result<(), Error> {
-    let contact = if user.mobile_number.is_some() {
-        user.mobile_number
+pub async fn request_otp(user: UserModel, requireEmailOtp: bool) -> Result<(), Error> {
+    let (contact, contact_type) = if user.mobile_number.is_some() {
+        (user.mobile_number, ContactType::MOBILE)
     } else if user.email.is_some() {
-        user.email
+        (user.email, ContactType::EMAIL)
     } else {
-        None
+        return Err(ErrorEnum::UserContactMissing.into());
     };
 
-    if contact.is_none() {
-        return Err(ErrorEnum::UserContactMissing.into());
-    }
+    let contact = contact.unwrap();
 
     let otp = format!("{:06}", thread_rng().gen_range(0..999999));
 
     REDIS_INSTANCE
         .lock()
         .unwrap()
-        .set_ex(format!("{}_otp", contact.unwrap()), 5 * 60, otp)?;
+        .set_ex(format!("{}_otp", contact), 5 * 60, otp.clone())?;
+
+    if contact_type == ContactType::MOBILE
+        || (contact_type == ContactType::EMAIL && requireEmailOtp)
+    {
+        send_otp(contact, otp, contact_type).await;
+    }
 
     Ok(())
 }
