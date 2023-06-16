@@ -118,7 +118,10 @@ pub async fn create_temp_user(
         serde_json::to_string(&validation_data)?.to_string(),
     )?;
 
-    spawn(async move { request_otp(parsed_user, validation_type == ValidationType::Signup).await });
+    spawn(async move {
+        let resp = request_otp(parsed_user, validation_type == ValidationType::Signup).await;
+        println!("Send OTP resp {:?}", resp);
+    });
 
     Ok(validation_id)
 }

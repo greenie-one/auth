@@ -28,7 +28,7 @@ pub async fn request_otp(user: UserModel, requireEmailOtp: bool) -> Result<(), E
     if contact_type == ContactType::MOBILE
         || (contact_type == ContactType::EMAIL && requireEmailOtp)
     {
-        send_otp(contact, otp, contact_type).await;
+        send_otp(contact, otp, contact_type).await?;
     }
 
     Ok(())
