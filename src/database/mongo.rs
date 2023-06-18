@@ -1,8 +1,10 @@
+use std::{env, str::FromStr};
+
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use mongodb::{
     bson::{doc, oid::ObjectId},
-    options::{ClientOptions, FindOneOptions, InsertOneOptions},
+    options::ClientOptions,
     results::InsertOneResult,
     Client, Database,
 };
@@ -13,9 +15,12 @@ use crate::error::Error;
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct UserModel {
     pub _id: Option<ObjectId>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 
     #[serde(rename = "mobileNumber")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mobile_number: Option<String>,
     pub password: Option<String>,
     pub roles: Vec<String>,
@@ -27,7 +32,16 @@ pub struct MongoDB {
 
 impl MongoDB {
     pub async fn new() -> MongoDB {
-        let client_options = ClientOptions::parse("mongodb+srv://greenie_backend:98mBkHwq2l03ZIiTpXK665OK8@development.foqafth.mongodb.net/greenie_mvp").await.unwrap();
+        let username = env::var("DB_USER").unwrap();
+        let password = env::var("DB_PASSWORD").unwrap();
+        let host = env::var("DB_HOST").unwrap();
+        let database = env::var("DB_DATABASE").unwrap();
+
+        let conn_string = format!(
+            "mongodb+srv://{}:{}@{}/{}",
+            username, password, host, database
+        );
+        let client_options = ClientOptions::parse(conn_string).await.unwrap();
         let client = Client::with_options(client_options).unwrap();
 
         let database = client.database("greenie_mvp");
@@ -47,7 +61,7 @@ impl MongoDB {
         let mut filter = doc! {};
 
         if id.is_some() {
-            filter.insert("_id", id.unwrap());
+            filter.insert("_id", ObjectId::from_str(&id.unwrap()).unwrap());
         }
 
         if email.is_some() {
@@ -58,20 +72,32 @@ impl MongoDB {
             filter.insert("mobileNumber", mobile.unwrap());
         }
 
-        println!("here {:?}", filter);
-
-        let found = collection
-            .find_one(filter, FindOneOptions::default())
-            .await?;
+        let found = collection.find_one(filter, None).await?;
 
         Ok(found)
     }
 
+    pub async fn update_password(
+        &self,
+        user_id: String,
+        password: String,
+    ) -> Result<Option<UserModel>, Error> {
+        let collection: mongodb::Collection<UserModel> = self.connection.collection("users");
+
+        let parsed_user_id = ObjectId::from_str(&user_id)?;
+        let filter = doc! {
+            "_id": parsed_user_id
+        };
+
+        collection
+            .find_one_and_update(filter, doc! { "$set" : { "password": password } }, None)
+            .await
+            .map_err(|e| e.into())
+    }
+
     pub async fn create_user(&self, user: UserModel) -> Result<InsertOneResult, Error> {
         let collection: mongodb::Collection<UserModel> = self.connection.collection("users");
-        let res = collection
-            .insert_one(user, InsertOneOptions::default())
-            .await?;
+        let res = collection.insert_one(user, None).await?;
 
         Ok(res)
     }

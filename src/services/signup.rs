@@ -1,9 +1,4 @@
-use std::{
-    fmt, fs,
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-use lazy_static::lazy_static;
+use std::fmt;
 
 use crate::{
     database::{
@@ -11,25 +6,21 @@ use crate::{
         redis::REDIS_INSTANCE,
     },
     dtos::{signup_dto::CreateUserDto, validate_otp_dto::ValidateOtpDto},
-    error::Error,
-    structs::{AccessTokenResponse, TokenClaims, ValidationData},
+    error::{Error, ErrorEnum},
+    structs::{AccessTokenResponse, ValidationData},
 };
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+
 use mongodb::bson::oid::ObjectId;
 use ntex::rt::spawn;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::validate_otp::{request_otp, validate_otp};
+use super::{
+    token::create_token,
+    validate_otp::{request_otp, validate_otp},
+};
 
-lazy_static! {
-    static ref DECODING_KEY: EncodingKey =
-        EncodingKey::from_rsa_pem(&fs::read("./keys/local/public.pem").unwrap()).unwrap();
-    static ref ENCODING_KEY: EncodingKey =
-        EncodingKey::from_rsa_pem(&fs::read("./keys/local/private.pem").unwrap()).unwrap();
-}
-
-#[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum ValidationType {
     Login,
     Signup,
@@ -44,36 +35,7 @@ impl fmt::Display for ValidationType {
     }
 }
 
-fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
-    let access_claims = TokenClaims {
-        email: user.email,
-        iss: "Greenie.one".to_owned(),
-        session_id: "".to_owned(),
-        roles: user.roles,
-        iat: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
-        is_refresh: None,
-        sub: user._id.unwrap().to_string(),
-        exp: 30 * 60,
-    };
-
-    let mut refresh_claims = access_claims.clone();
-    refresh_claims.is_refresh = Some(true);
-
-    let header = Header {
-        alg: Algorithm::RS384,
-        ..Default::default()
-    };
-
-    let access_token = encode(&header, &access_claims, &ENCODING_KEY)?;
-    let refresh_token = encode(&header, &refresh_claims, &ENCODING_KEY)?;
-
-    Ok(AccessTokenResponse {
-        access_token,
-        refresh_token,
-    })
-}
-
-fn create_user(data: CreateUserDto) -> Result<UserModel, Error> {
+fn parse_user(data: CreateUserDto) -> Result<UserModel, Error> {
     let hashed_password = if data.password.is_some() {
         Some(bcrypt::hash(data.password.unwrap(), bcrypt::DEFAULT_COST)?)
     } else {
@@ -89,17 +51,27 @@ fn create_user(data: CreateUserDto) -> Result<UserModel, Error> {
     })
 }
 
-fn validate_user(data: CreateUserDto, existing_user: UserModel) -> Result<UserModel, Error> {
-    let verify = bcrypt::verify(
-        data.password.unwrap(),
-        existing_user.clone().password.unwrap().as_str(),
-    )?;
+fn parse_and_validate_user(
+    data: CreateUserDto,
+    existing_user: UserModel,
+) -> Result<UserModel, Error> {
+    let mut verify: bool = false;
+    if data.email.is_some() {
+        verify = bcrypt::verify(
+            data.password.unwrap(),
+            existing_user.clone().password.unwrap().as_str(),
+        )?;
+    }
+
+    if data.mobile_number.is_some() {
+        verify = true;
+    }
 
     if verify {
         return Ok(existing_user);
     }
 
-    Err(Error::new("Invalid username or password", 401))
+    Err(ErrorEnum::PasswordMismatch.into())
 }
 
 pub async fn create_temp_user(
@@ -107,10 +79,7 @@ pub async fn create_temp_user(
     validation_type: ValidationType,
 ) -> Result<String, Error> {
     if data.email.is_none() && data.mobile_number.is_none() {
-        return Err(Error::new(
-            "Mobile number and email both cannot be empty",
-            400,
-        ));
+        return Err(ErrorEnum::EmailMobileEmpty.into());
     }
 
     let database = MONGO_DB_INSTANCE.get().await;
@@ -122,22 +91,21 @@ pub async fn create_temp_user(
     let parsed_user: UserModel = match validation_type {
         ValidationType::Login => {
             if user.is_none() {
-                return Err(Error::new("User does not exist", 400));
+                return Err(ErrorEnum::UserNotFound.into());
             }
 
-            validate_user(data, user.unwrap())
+            parse_and_validate_user(data, user.unwrap())
         }
         ValidationType::Signup => {
             if user.is_some() {
-                return Err(Error::new("User already exists", 400));
+                return Err(ErrorEnum::UserAlreadyExists(user.unwrap()).into());
             }
 
-            create_user(data)
+            parse_user(data)
         }
     }?;
 
     let validation_id = Uuid::new_v4().to_string();
-    let validation_type = validation_type;
 
     let validation_data = ValidationData {
         validation_type,
@@ -150,9 +118,29 @@ pub async fn create_temp_user(
         serde_json::to_string(&validation_data)?.to_string(),
     )?;
 
-    spawn(async { request_otp(parsed_user).await });
+    spawn(async move {
+        let resp = request_otp(parsed_user, validation_type == ValidationType::Signup).await;
+        println!("Send OTP resp {:?}", resp);
+    });
 
     Ok(validation_id)
+}
+
+pub async fn insert_user(mut user: UserModel) -> Result<UserModel, Error> {
+    let mongodb = MONGO_DB_INSTANCE.get().await;
+
+    let existing = mongodb
+        .find_user(user.clone().email, user.clone().mobile_number, None)
+        .await?;
+    if existing.is_some() {
+        return Err(ErrorEnum::UserAlreadyExists(existing.unwrap()).into());
+    }
+
+    let _id = mongodb.create_user(user.clone()).await?;
+
+    user._id = _id.inserted_id.as_object_id();
+
+    Ok(user)
 }
 
 pub async fn validate_by_validation_id(data: ValidateOtpDto) -> Result<AccessTokenResponse, Error> {
@@ -169,16 +157,11 @@ pub async fn validate_by_validation_id(data: ValidateOtpDto) -> Result<AccessTok
             REDIS_INSTANCE.lock().unwrap().del(validation_key)?;
 
             if d.validation_type.eq(&ValidationType::Signup) {
-                let _id = MONGO_DB_INSTANCE
-                    .get()
-                    .await
-                    .create_user(d.user.clone())
-                    .await?;
-                d.user._id = _id.inserted_id.as_object_id();
+                d.user = insert_user(d.user).await?;
             }
 
             create_token(d.user)
         }
-        Err(_) => Err(Error::new("Invalid validation ID", 400)),
+        Err(_) => Err(ErrorEnum::InvalidValidationId.into()),
     }
 }
