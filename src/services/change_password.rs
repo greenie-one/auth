@@ -1,11 +1,9 @@
 use uuid::Uuid;
 
 use crate::{
-    database::{mongo::MONGO_DB_INSTANCE, redis::REDIS_INSTANCE},
+    database::mongo::MONGO_DB_INSTANCE,
     dtos::change_password_dto::{ChangePasswordDto, ValidateForgotPasswordDto},
     error::{Error, ErrorEnum},
-    structs::ChangePasswordValidationData,
-    validate_forgot_password_otp,
 };
 
 use super::validate_otp::{request_forgot_pass_otp, validate_forgot_pass_otp};
