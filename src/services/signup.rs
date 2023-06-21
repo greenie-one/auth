@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use super::{
     token::create_token,
-    validate_otp::{request_otp, validate_otp},
+    validate_otp::{request_login_otp, validate_otp},
 };
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone, Copy)]
@@ -119,7 +119,7 @@ pub async fn create_temp_user(
     )?;
 
     spawn(async move {
-        let resp = request_otp(parsed_user, validation_type == ValidationType::Signup).await;
+        let resp = request_login_otp(parsed_user, validation_type == ValidationType::Signup).await;
         println!("Send OTP resp {:?}", resp);
     });
 

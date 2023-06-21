@@ -2,12 +2,34 @@ use rand::{thread_rng, Rng};
 
 use crate::{
     database::{mongo::UserModel, redis::REDIS_INSTANCE},
+    dtos::change_password_dto::ValidateForgotPasswordDto,
     env_config::APP_ENV,
     error::{Error, ErrorEnum},
     remote::otp::{send_otp, ContactType},
+    structs::ChangePasswordValidationData,
 };
 
-pub async fn request_otp(user: UserModel, require_email_otp: bool) -> Result<(), Error> {
+pub async fn request_forgot_pass_otp(
+    validation_id: String,
+    user_id: String,
+    email: String,
+) -> Result<(), Error> {
+    let otp = format!("{:06}", thread_rng().gen_range(0..999999));
+
+    REDIS_INSTANCE.lock()?.set_ex(
+        format!("change_password_{}", validation_id),
+        15 * 60,
+        serde_json::to_string(&ChangePasswordValidationData {
+            user_id,
+            otp: otp.clone(),
+        })?,
+    )?;
+
+    send_otp(email, otp, ContactType::EMAIL).await?;
+    Ok(())
+}
+
+pub async fn request_login_otp(user: UserModel, require_email_otp: bool) -> Result<(), Error> {
     let (contact, contact_type) = if user.mobile_number.is_some() {
         (user.mobile_number, ContactType::MOBILE)
     } else if user.email.is_some() {
@@ -32,6 +54,37 @@ pub async fn request_otp(user: UserModel, require_email_otp: bool) -> Result<(),
     }
 
     Ok(())
+}
+
+pub fn validate_forgot_pass_otp(
+    data: ValidateForgotPasswordDto,
+) -> Result<ChangePasswordValidationData, Error> {
+    let validation_id = data.validation_id.clone();
+
+    let res = REDIS_INSTANCE
+        .lock()?
+        .get_json::<ChangePasswordValidationData>(format!(
+            "change_password_{}",
+            validation_id.clone()
+        ));
+
+    match res {
+        Ok(validation_data) => {
+            if data.otp != validation_data.otp {
+                return Err(ErrorEnum::InvalidOTP.into());
+            }
+
+            REDIS_INSTANCE
+                .lock()?
+                .del(format!("change_password_{}", validation_id))?;
+
+            Ok(validation_data)
+        }
+        Err(e) => {
+            println!("{:?}", e);
+            Err(ErrorEnum::InvalidValidationId.into())
+        }
+    }
 }
 
 pub fn validate_otp(user: UserModel, otp: String) -> Result<(), Error> {
