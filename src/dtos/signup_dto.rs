@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
+use serde::Deserializer;
 use validator::ValidationError;
 use validator_derive::Validate;
 
@@ -18,6 +19,7 @@ pub struct CreateUserDto {
     pub email: Option<String>,
 
     #[serde(rename = "mobileNumber")]
+    #[serde(deserialize_with = "sanitize_mobile")]
     #[validate(regex = "MOBILE_REGEX")]
     pub mobile_number: Option<String>,
 
@@ -31,4 +33,19 @@ fn validate_create_user_dto(dto: &CreateUserDto) -> Result<(), ValidationError> 
         return Err(err);
     }
     Ok(())
+}
+
+fn sanitize_mobile<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: Option<String> = Deserialize::deserialize(deserializer)?;
+
+    if s.is_some() {
+        let unwrapped = s.clone().unwrap();
+        if !unwrapped.starts_with("+") {
+            return Ok(Some(format!("+91{}", unwrapped)));
+        }
+    }
+    Ok(s)
 }
