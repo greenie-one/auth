@@ -19,6 +19,7 @@ pub struct CreateUserDto {
     pub email: Option<String>,
 
     #[serde(rename = "mobileNumber")]
+    #[serde(default)]
     #[serde(deserialize_with = "sanitize_mobile")]
     #[validate(regex = "MOBILE_REGEX")]
     pub mobile_number: Option<String>,
