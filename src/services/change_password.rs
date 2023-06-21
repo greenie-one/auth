@@ -1,12 +1,12 @@
-use rand::{thread_rng, Rng};
 use uuid::Uuid;
 
 use crate::{
-    database::{mongo::MONGO_DB_INSTANCE, redis::REDIS_INSTANCE},
+    database::mongo::MONGO_DB_INSTANCE,
     dtos::change_password_dto::{ChangePasswordDto, ValidateForgotPasswordDto},
     error::{Error, ErrorEnum},
-    structs::ChangePasswordValidationData,
 };
+
+use super::validate_otp::{request_forgot_pass_otp, validate_forgot_pass_otp};
 
 pub async fn initiate_forgot_password(email: String) -> Result<String, Error> {
     let mongodb = MONGO_DB_INSTANCE.get().await;
@@ -19,47 +19,15 @@ pub async fn initiate_forgot_password(email: String) -> Result<String, Error> {
     let user = user.unwrap();
 
     let validation_id = Uuid::new_v4().to_string();
-    let otp = format!("{:06}", thread_rng().gen_range(0..999999));
-
-    REDIS_INSTANCE.lock()?.set_ex(
-        format!("change_password_{}", validation_id),
-        15 * 60,
-        serde_json::to_string(&ChangePasswordValidationData {
-            otp,
-            user_id: user._id.unwrap().to_string(),
-        })?,
-    )?;
+    request_forgot_pass_otp(validation_id.clone(), user._id.unwrap().to_string(), email).await?;
 
     Ok(validation_id)
 }
 
 pub async fn validate_change_password(data: ValidateForgotPasswordDto) -> Result<(), Error> {
-    let validation_id = data.validation_id.clone();
-
-    let res = REDIS_INSTANCE
-        .lock()?
-        .get_json::<ChangePasswordValidationData>(format!(
-            "change_password_{}",
-            validation_id.clone()
-        ));
-
-    match res {
-        Ok(validation_data) => {
-            if data.otp != validation_data.otp {
-                return Err(ErrorEnum::InvalidOTP.into());
-            }
-
-            change_password(validation_data.user_id, data.into(), true).await?;
-
-            REDIS_INSTANCE
-                .lock()?
-                .del(format!("change_password_{}", validation_id))
-        }
-        Err(e) => {
-            println!("{:?}", e);
-            Err(ErrorEnum::InvalidValidationId.into())
-        }
-    }
+    let validation_data = validate_forgot_pass_otp(data.clone())?;
+    change_password(validation_data.user_id, data.into(), true).await?;
+    Ok(())
 }
 
 pub async fn change_password(
