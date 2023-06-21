@@ -9,6 +9,8 @@ use crate::{
     structs::ChangePasswordValidationData,
 };
 
+use super::signup::ValidationType;
+
 pub async fn request_forgot_pass_otp(
     validation_id: String,
     user_id: String,
@@ -87,7 +89,19 @@ pub fn validate_forgot_pass_otp(
     }
 }
 
-pub fn validate_otp(user: UserModel, otp: String) -> Result<(), Error> {
+fn should_validate_otp(validation_type: ValidationType, user: UserModel) -> bool {
+    if validation_type == ValidationType::Signup {
+        return true;
+    }
+
+    user.mobile_number.is_some()
+}
+
+pub fn validate_otp(
+    user: UserModel,
+    otp: String,
+    validation_type: ValidationType,
+) -> Result<(), Error> {
     let contact = if user.mobile_number.is_some() {
         user.mobile_number.clone()
     } else if user.email.is_some() {
@@ -108,10 +122,12 @@ pub fn validate_otp(user: UserModel, otp: String) -> Result<(), Error> {
     let otp_fetched: String = REDIS_INSTANCE.lock().unwrap().get(otp_key.to_owned())?;
 
     // Check OTP only on mobile number. Let email pass without OTP
-    if (user.mobile_number.is_some() && otp.eq(&otp_fetched)) || (user.email.is_some()) {
-        REDIS_INSTANCE.lock().unwrap().del(otp_key)?;
-        return Ok(());
+    if should_validate_otp(validation_type, user.clone()) {
+        if !otp.eq(&otp_fetched) {
+            return Err(ErrorEnum::InvalidOTP.into());
+        }
     }
 
-    Err(ErrorEnum::InvalidOTP.into())
+    REDIS_INSTANCE.lock().unwrap().del(otp_key)?;
+    Ok(())
 }

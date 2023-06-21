@@ -152,7 +152,7 @@ pub async fn validate_by_validation_id(data: ValidateOtpDto) -> Result<AccessTok
 
     match validation_data {
         Ok(mut d) => {
-            validate_otp(d.user.clone(), data.otp)?;
+            validate_otp(d.user.clone(), data.otp, d.validation_type)?;
 
             REDIS_INSTANCE.lock().unwrap().del(validation_key)?;
 
