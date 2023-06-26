@@ -47,7 +47,7 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
         },
         ErrorEnum::UnAuthorized => GenericError {
             message: "Unauthorized".to_string(),
-            status: 400,
+            status: 401,
             code: "GRA0001",
         },
         ErrorEnum::UserAlreadyExists(_) => GenericError {
