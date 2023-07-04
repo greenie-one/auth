@@ -10,8 +10,8 @@ use crate::{
     structs::{AccessTokenResponse, ValidationData},
 };
 
+use actix_web::rt::spawn;
 use mongodb::bson::oid::ObjectId;
-use ntex::rt::spawn;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

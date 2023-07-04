@@ -5,9 +5,9 @@ use std::{
     time::SystemTimeError,
 };
 
-use ntex::{
+use actix_web::{
     http::{header::ToStrError, StatusCode},
-    web::{self, HttpRequest, WebResponseError},
+    HttpResponse, ResponseError,
 };
 use redis::RedisError;
 
@@ -152,8 +152,8 @@ impl Display for Error {
     }
 }
 
-impl WebResponseError for Error {
-    fn error_response(&self, _: &HttpRequest) -> web::HttpResponse {
+impl ResponseError for Error {
+    fn error_response(&self) -> HttpResponse {
         println!("{:?}", self);
 
         let (err_json, status) = match self {
@@ -184,7 +184,7 @@ impl WebResponseError for Error {
                 (serde_json::to_value(&error).unwrap(), error.status)
             }
         };
-        web::HttpResponse::build(StatusCode::from_u16(status).unwrap()).json(&err_json)
+        HttpResponse::build(StatusCode::from_u16(status).unwrap()).json(&err_json)
     }
 }
 
