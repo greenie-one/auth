@@ -36,6 +36,7 @@ pub enum ErrorEnum {
     OAuthFailed(String),
     NotYetImplemented,
     ValidationError(String),
+    UseOAuthLoginInstead,
 }
 
 fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
@@ -109,6 +110,11 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
             code: "GRA9999",
             message: "Feature not yet implemented".to_string(),
             status: 500,
+        },
+        ErrorEnum::UseOAuthLoginInstead => GenericError {
+            message: "Use OAuth login method for this email".to_string(),
+            status: 400,
+            code: "GRA0018",
         },
     }
 }
