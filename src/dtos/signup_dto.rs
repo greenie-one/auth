@@ -9,7 +9,7 @@ use validator_derive::Validate;
 
 lazy_static! {
     static ref MOBILE_REGEX: Regex =
-        Regex::new(r"^(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[789]\d{9}$").unwrap();
+        Regex::new(r"^(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}$").unwrap();
 }
 
 #[derive(Debug, Validate, Clone, Deserialize)]
