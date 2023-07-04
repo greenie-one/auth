@@ -1,6 +1,7 @@
 use std::{env, io};
 
 use dtos::refresh_dto::RefreshTokenDto;
+use dtos::resend_otp_dto::ResendOTPDto;
 use ntex::http::StatusCode;
 
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
@@ -8,6 +9,7 @@ use serde_json::json;
 use services::change_password::change_password as change_password_service;
 use services::oauth::oauth::{get_provider, OAuthProviders};
 use services::refresh::get_refreshed_tokens;
+use services::validate_otp::generate_and_resend_otp;
 use validator::Validate;
 
 use crate::dtos::change_password_dto::{
@@ -67,6 +69,14 @@ async fn validate_otp(item: web::types::Json<ValidateOtpDto>) -> Result<HttpResp
     let data = validate_by_validation_id(item.into_inner().clone()).await?;
 
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
+}
+
+async fn resend_otp(item: web::types::Json<ResendOTPDto>) -> Result<HttpResponse, Error> {
+    item.validate()?;
+
+    generate_and_resend_otp(item.validation_id.clone()).await?;
+
+    Ok(HttpResponse::build(StatusCode::OK).finish())
 }
 
 async fn validate_forgot_password_otp(
@@ -167,6 +177,7 @@ async fn main() -> io::Result<()> {
                 get_route("/validateOTP").as_str(),
                 web::post().to(validate_otp),
             )
+            .route(get_route("/resendOTP").as_str(), web::post().to(resend_otp))
             .route(
                 get_route("/validate_forgot_password").as_str(),
                 web::post().to(validate_forgot_password_otp),
