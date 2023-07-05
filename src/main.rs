@@ -1,13 +1,15 @@
 use std::{env, io};
 
+use actix_web::http::StatusCode;
+use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use dtos::refresh_dto::RefreshTokenDto;
-use ntex::http::StatusCode;
+use dtos::resend_otp_dto::ResendOTPDto;
 
-use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use serde_json::json;
 use services::change_password::change_password as change_password_service;
 use services::oauth::oauth::{get_provider, OAuthProviders};
 use services::refresh::get_refreshed_tokens;
+use services::validate_otp::generate_and_resend_otp;
 use validator::Validate;
 
 use crate::dtos::change_password_dto::{
@@ -37,7 +39,7 @@ async fn validate_token(req: HttpRequest) -> Result<HttpResponse, Error> {
         let claims = decode_token(token_stripped);
         println!("{:?}", claims);
         match claims {
-            Ok(c) => Ok(resp.set_header("x-user-details", serde_json::to_string(&c)?)),
+            Ok(c) => Ok(resp.insert_header(("x-user-details", serde_json::to_string(&c)?))),
             Err(_) => Err(ErrorEnum::UnAuthorized),
         }?;
     }
@@ -45,7 +47,7 @@ async fn validate_token(req: HttpRequest) -> Result<HttpResponse, Error> {
     Ok(resp.finish())
 }
 
-async fn signup(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
+async fn signup(item: web::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
     let validation_id = create_temp_user(item.into_inner().clone(), ValidationType::Signup).await?;
@@ -53,7 +55,7 @@ async fn signup(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, E
     Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": validation_id })))
 }
 
-async fn login(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
+async fn login(item: web::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
     let validation_id = create_temp_user(item.into_inner().clone(), ValidationType::Login).await?;
@@ -61,7 +63,7 @@ async fn login(item: web::types::Json<CreateUserDto>) -> Result<HttpResponse, Er
     Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": validation_id })))
 }
 
-async fn validate_otp(item: web::types::Json<ValidateOtpDto>) -> Result<HttpResponse, Error> {
+async fn validate_otp(item: web::Json<ValidateOtpDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
     let data = validate_by_validation_id(item.into_inner().clone()).await?;
@@ -69,8 +71,16 @@ async fn validate_otp(item: web::types::Json<ValidateOtpDto>) -> Result<HttpResp
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
 }
 
+async fn resend_otp(item: web::Json<ResendOTPDto>) -> Result<HttpResponse, Error> {
+    item.validate()?;
+
+    generate_and_resend_otp(item.validation_id.clone()).await?;
+
+    Ok(HttpResponse::build(StatusCode::OK).finish())
+}
+
 async fn validate_forgot_password_otp(
-    item: web::types::Json<ValidateForgotPasswordDto>,
+    item: web::Json<ValidateForgotPasswordDto>,
 ) -> Result<HttpResponse, Error> {
     item.validate()?;
 
@@ -78,7 +88,7 @@ async fn validate_forgot_password_otp(
     Ok(HttpResponse::build(StatusCode::OK).finish())
 }
 
-async fn forgot_password(item: web::types::Json<ForgotPasswordDto>) -> Result<HttpResponse, Error> {
+async fn forgot_password(item: web::Json<ForgotPasswordDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
     let data = initiate_forgot_password(item.email.clone()).await?;
@@ -87,7 +97,7 @@ async fn forgot_password(item: web::types::Json<ForgotPasswordDto>) -> Result<Ht
 
 async fn change_password(
     req: HttpRequest,
-    item: web::types::Json<ChangePasswordDto>,
+    item: web::Json<ChangePasswordDto>,
 ) -> Result<HttpResponse, Error> {
     let mut resp = HttpResponse::build(StatusCode::OK);
     let auth_token = req.headers().get("authorization");
@@ -109,9 +119,7 @@ async fn change_password(
     Ok(resp.finish())
 }
 
-async fn refresh_token(
-    refresh_token: web::types::Query<RefreshTokenDto>,
-) -> Result<HttpResponse, Error> {
+async fn refresh_token(refresh_token: web::Query<RefreshTokenDto>) -> Result<HttpResponse, Error> {
     refresh_token.validate()?;
 
     let data = get_refreshed_tokens(&refresh_token.refresh_token).await?;
@@ -119,7 +127,7 @@ async fn refresh_token(
     Ok(HttpResponse::build(StatusCode::OK).json(&data))
 }
 
-async fn get_oauth_redirect_uri(provider: web::types::Path<String>) -> Result<HttpResponse, Error> {
+async fn get_oauth_redirect_uri(provider: web::Path<String>) -> Result<HttpResponse, Error> {
     let provider = get_provider(provider.as_str())?;
     let url = provider.get_redirect_uri()?;
 
@@ -127,7 +135,7 @@ async fn get_oauth_redirect_uri(provider: web::types::Path<String>) -> Result<Ht
 }
 
 async fn handle_oauth_callback(
-    provider: web::types::Path<String>,
+    provider: web::Path<String>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let provider = get_provider(provider.as_str())?;
@@ -147,14 +155,19 @@ fn get_route(route: &str) -> String {
     }
 }
 
-#[ntex::main]
+#[actix_web::main]
 async fn main() -> io::Result<()> {
     env_config::load_env();
     env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    web::server(move || {
+    HttpServer::new(move || {
+        let json_cfg = web::JsonConfig::default().error_handler(|err, _| {
+            println!("{:?}", err);
+            Error::DefinedError(ErrorEnum::ValidationError(err.to_string())).into()
+        });
         App::new()
+            .app_data(json_cfg)
             .wrap(middleware::Logger::default())
             .route(get_route("/signup").as_str(), web::post().to(signup))
             .route(
@@ -167,6 +180,7 @@ async fn main() -> io::Result<()> {
                 get_route("/validateOTP").as_str(),
                 web::post().to(validate_otp),
             )
+            .route(get_route("/resendOTP").as_str(), web::post().to(resend_otp))
             .route(
                 get_route("/validate_forgot_password").as_str(),
                 web::post().to(validate_forgot_password_otp),

@@ -10,8 +10,8 @@ use crate::{
     structs::{AccessTokenResponse, ValidationData},
 };
 
+use actix_web::rt::spawn;
 use mongodb::bson::oid::ObjectId;
-use ntex::rt::spawn;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -57,6 +57,10 @@ fn parse_and_validate_user(
 ) -> Result<UserModel, Error> {
     let mut verify: bool = false;
     if data.email.is_some() {
+        if existing_user.password.is_none() {
+            return Err(ErrorEnum::UseOAuthLoginInstead.into());
+        }
+
         verify = bcrypt::verify(
             data.password.unwrap(),
             existing_user.clone().password.unwrap().as_str(),

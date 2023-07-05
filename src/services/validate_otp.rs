@@ -6,7 +6,7 @@ use crate::{
     env_config::APP_ENV,
     error::{Error, ErrorEnum},
     remote::otp::{send_otp, ContactType},
-    structs::ChangePasswordValidationData,
+    structs::{ChangePasswordValidationData, ValidationData},
 };
 
 use super::signup::ValidationType;
@@ -129,5 +129,21 @@ pub fn validate_otp(
     }
 
     REDIS_INSTANCE.lock().unwrap().del(otp_key)?;
+    Ok(())
+}
+
+pub async fn generate_and_resend_otp(validation_id: String) -> Result<(), Error> {
+    let validation_key = format!("validation_{}", validation_id);
+    let validation_data: ValidationData = REDIS_INSTANCE
+        .lock()
+        .unwrap()
+        .get_json(validation_key.to_owned())?;
+
+    let user = validation_data.user;
+    let validation_type = validation_data.validation_type;
+
+    let resp = request_login_otp(user, validation_type == ValidationType::Signup).await?;
+    println!("Send OTP resp {:?}", resp);
+
     Ok(())
 }
