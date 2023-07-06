@@ -80,7 +80,7 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
         ErrorEnum::PasswordMismatch => GenericError {
             code: "GRA0012",
             message: "Invalid user details".to_string(),
-            status: 400,
+            status: 403,
         },
         ErrorEnum::EmailMobileEmpty => GenericError {
             code: "GRA0013",
