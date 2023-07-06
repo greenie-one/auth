@@ -32,6 +32,7 @@ pub enum ErrorEnum {
     EmailMobileEmpty,
     InvalidOTP,
     TokenExpired,
+    OAuthTokenExpired,
     OAuthProviderNotFound,
     OAuthFailed(String),
     NotYetImplemented,
@@ -79,7 +80,7 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
         ErrorEnum::PasswordMismatch => GenericError {
             code: "GRA0012",
             message: "Invalid user details".to_string(),
-            status: 401,
+            status: 400,
         },
         ErrorEnum::EmailMobileEmpty => GenericError {
             code: "GRA0013",
@@ -95,6 +96,11 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
             code: "GRA0015",
             message: "Auth token is expired".to_string(),
             status: 401,
+        },
+        ErrorEnum::OAuthTokenExpired => GenericError {
+            code: "GRA0015",
+            message: "OAuth token is expired".to_string(),
+            status: 400,
         },
         ErrorEnum::OAuthProviderNotFound => GenericError {
             code: "GRA0016",

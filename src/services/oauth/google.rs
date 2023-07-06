@@ -64,7 +64,7 @@ impl GoogleProvider {
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         if now > claims.claims.exp {
-            return Err(ErrorEnum::TokenExpired.into());
+            return Err(ErrorEnum::OAuthTokenExpired.into());
         }
 
         Ok(claims.claims)
