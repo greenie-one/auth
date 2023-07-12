@@ -74,7 +74,7 @@ impl GoogleProvider {
         &self,
         auth_code: Cow<'_, str>,
     ) -> Result<GoogleAccessTokenClaims, Error> {
-        let client = reqwest::blocking::Client::builder().build()?;
+        let client = reqwest::Client::builder().build()?;
 
         let mut params = HashMap::new();
         params.insert("grant_type", "authorization_code");
@@ -89,13 +89,18 @@ impl GoogleProvider {
         let binding = std::env::var("GOOGLE_REDIRECT_URI")?;
         params.insert("redirect_uri", &binding);
 
+        println!("{:?}", params);
+
         let resp = client
             .post("https://oauth2.googleapis.com/token")
             .form(&params)
-            .send()?
-            .json::<GoogleAccessTokenResponse>()?;
+            .send()
+            .await?
+            .json::<GoogleAccessTokenResponse>()
+            .await?;
 
         if resp.error.is_some() {
+            println!("{:?}", resp);
             return Err(ErrorEnum::OAuthFailed(format!(
                 "{}: {}",
                 resp.error.unwrap(),
