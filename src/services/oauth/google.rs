@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use jsonwebkey::JsonWebKey;
 use jsonwebtoken::{decode, TokenData, Validation};
 use serde::Deserialize;
+use serde_json::Value;
 use url::Url;
 
 use crate::{
@@ -43,16 +44,19 @@ pub struct GoogleAccessTokenClaims {
 pub struct GoogleProvider;
 
 impl GoogleProvider {
-    fn decode_token(&self, token: &str) -> Result<GoogleAccessTokenClaims, Error> {
-        let jwks = reqwest::blocking::get("https://www.googleapis.com/oauth2/v3/certs")?
-            .json::<serde_json::Value>()?;
+    fn decode_claims(
+        &self,
+        jwks: Value,
+        key: usize,
+        token: &str,
+    ) -> Result<TokenData<GoogleAccessTokenClaims>, Error> {
         let jwks = jwks
             .as_object()
             .unwrap()
             .get("keys")
             .unwrap()
             .as_array()
-            .unwrap()[0]
+            .unwrap()[key]
             .to_string();
         let jwk: JsonWebKey = jwks.parse().unwrap();
 
@@ -62,6 +66,22 @@ impl GoogleProvider {
         let claims: TokenData<GoogleAccessTokenClaims> =
             decode(token, &jwk.key.to_decoding_key(), &validation)?;
 
+        Ok(claims)
+    }
+
+    async fn decode_token(&self, token: &str) -> Result<GoogleAccessTokenClaims, Error> {
+        let jwks = reqwest::get("https://www.googleapis.com/oauth2/v3/certs")
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        let mut claims = self.decode_claims(jwks.clone(), 0, token);
+
+        if claims.is_err() {
+            claims = self.decode_claims(jwks, 1, token);
+        }
+
+        let claims = claims?;
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         if now > claims.claims.exp {
             return Err(ErrorEnum::TokenExpired.into());
@@ -89,8 +109,6 @@ impl GoogleProvider {
         let binding = std::env::var("GOOGLE_REDIRECT_URI")?;
         params.insert("redirect_uri", &binding);
 
-        println!("{:?}", params);
-
         let resp = client
             .post("https://oauth2.googleapis.com/token")
             .form(&params)
@@ -110,7 +128,7 @@ impl GoogleProvider {
         }
 
         if resp.id_token.is_some() {
-            return self.decode_token(&resp.id_token.unwrap());
+            return self.decode_token(&resp.id_token.unwrap()).await;
         }
 
         Err(ErrorEnum::OAuthFailed("Missing id token in response".to_string()).into())
