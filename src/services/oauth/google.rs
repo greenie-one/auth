@@ -13,9 +13,10 @@ use serde_json::Value;
 use url::Url;
 
 use crate::{
-    database::mongo::UserModel,
+    database::mongo::{UserModel, MONGO_DB_INSTANCE},
     error::{Error, ErrorEnum},
     services::{signup::insert_user, token::create_token},
+    structs::AccessTokenResponse,
 };
 
 use super::oauth::{OAuthLoginResponse, OAuthProviders, ProfileHints};
@@ -163,26 +164,28 @@ impl OAuthProviders for GoogleProvider {
         let code = code_opt.unwrap();
         let access_token_claims = self.get_access_token_claims(code.1).await?;
 
-        let mut user = UserModel {
-            _id: None,
-            email: access_token_claims.email,
-            mobile_number: None,
-            password: None,
-            roles: vec!["default".to_string()],
-        };
+        let token: AccessTokenResponse;
 
-        let insert_user_resp = insert_user(user.clone()).await;
-        if insert_user_resp.is_err() {
-            user = match insert_user_resp.unwrap_err() {
-                Error::DefinedError(e) => match e {
-                    ErrorEnum::UserAlreadyExists(u) => Ok(u),
-                    _ => Err(Error::DefinedError(e)),
-                },
-                e => Err(e),
-            }?;
+        let existing_user = MONGO_DB_INSTANCE
+            .get()
+            .await
+            .find_user(access_token_claims.email.clone(), None, None)
+            .await?;
+
+        if existing_user.is_some() {
+            token = create_token(existing_user.unwrap())?;
+        } else {
+            let user = insert_user(UserModel {
+                _id: None,
+                email: access_token_claims.email,
+                mobile_number: None,
+                password: None,
+                roles: vec!["default".to_string()],
+            })
+            .await?;
+
+            token = create_token(user)?;
         }
-
-        let token = create_token(user)?;
 
         Ok(OAuthLoginResponse {
             access_token: token.access_token,
