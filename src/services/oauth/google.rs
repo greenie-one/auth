@@ -17,10 +17,10 @@ use crate::{
     database::mongo::{UserModel, MONGO_DB_INSTANCE},
     error::{Error, ErrorEnum},
     services::{signup::insert_user, token::create_token},
-    structs::AccessTokenResponse,
+    structs::{AccessTokenResponse, OAuthLoginResponse, ProfileHints},
 };
 
-use super::oauth::{OAuthLoginResponse, OAuthProviders, ProfileHints};
+use super::oauth::OAuthProviders;
 
 #[derive(Debug, Deserialize)]
 pub struct GoogleAccessTokenResponse {

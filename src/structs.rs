@@ -49,3 +49,19 @@ pub struct GenericError<'a> {
     pub status: u16,
     pub code: &'a str,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProfileHints {
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OAuthLoginResponse {
+    #[serde(rename = "accessToken")]
+    pub access_token: Option<String>,
+
+    #[serde(rename = "refreshToken")]
+    pub refresh_token: Option<String>,
+    pub profile_hints: ProfileHints,
+}
