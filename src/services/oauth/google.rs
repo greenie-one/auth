@@ -8,6 +8,7 @@ use std::{
 use async_trait::async_trait;
 use jsonwebkey::JsonWebKey;
 use jsonwebtoken::{decode, TokenData, Validation};
+use mongodb::bson::oid::ObjectId;
 use serde::Deserialize;
 use serde_json::Value;
 use url::Url;
@@ -176,7 +177,7 @@ impl OAuthProviders for GoogleProvider {
             token = create_token(existing_user.unwrap())?;
         } else {
             let user = insert_user(UserModel {
-                _id: None,
+                _id: Some(ObjectId::new()),
                 email: access_token_claims.email,
                 mobile_number: None,
                 password: None,
