@@ -74,6 +74,12 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Add openssl vendor
+        uses: actions-rs/cargo@v1
+        with:
+          command: add
+          args: openssl -F vendored
+
       - name: Build auth module
         uses: actions-rs/cargo@v1
         with:
