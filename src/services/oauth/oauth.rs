@@ -4,10 +4,8 @@ extern crate jsonwebtoken as jwt;
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 
-use crate::{
-    error::{Error, ErrorEnum},
-    structs::OAuthLoginResponse,
-};
+pub use crate::structs::OAuthLoginResponse;
+use crate::error::{Error, ErrorEnum};
 
 use super::{google::GoogleProvider, linkedin::LinkedInProvider};
 
