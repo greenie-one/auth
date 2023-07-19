@@ -21,7 +21,7 @@ jobs:
       uses: relicx-ai/body-regex-validator-action@main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        PULL_REQUEST_PATTERN: '\b(AB#[0-9]+)$'
+        PULL_REQUEST_PATTERN: '\b(AB#[0-9]+)\b'
         PULL_REQUEST_COMMENT: 'Pull request is not linked to Azure booards item.'
         ISSUE_PATTERN: '(?s).*'
         ISSUE_COMMENT: 'We dont use github issues'
