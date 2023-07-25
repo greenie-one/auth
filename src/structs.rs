@@ -77,6 +77,7 @@ pub struct OAuthRedirectUriResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct ValidationIdResponse {
     #[serde(rename = "validationId")]
     pub validation_id: String,
