@@ -4,7 +4,6 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Deserializer;
-use serde::Serialize;
 use ts_rs::TS;
 use validator::ValidationError;
 use validator_derive::Validate;

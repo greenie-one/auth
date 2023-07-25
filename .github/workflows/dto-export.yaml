@@ -1,0 +1,43 @@
+name: Update types
+
+on:
+  push:
+    branches:
+      - 'dev'
+      - 'main'
+      - 'sg/dto_fix'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+        with:
+          path: auth
+
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+        with:
+          repository: greenie-one/global-dtos
+          path: global-dtos
+          ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
+
+      - name: Copy files and push
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "Greenie"
+
+          cd $GITHUB_WORKSPACE/global-dtos
+
+          git config push.ff only
+          git checkout ${GITHUB_REF##*/} 2>/dev/null || git checkout -b ${GITHUB_REF##*/}
+          git pull origin ${GITHUB_REF##*/}
+
+          bash $GITHUB_WORKSPACE/auth/scripts/copy_dto.sh
+
+          git add -A
+          git diff-index --quiet HEAD -- || git commit -m "Types sync"
+          git push --set-upstream origin ${GITHUB_REF##*/}
+
