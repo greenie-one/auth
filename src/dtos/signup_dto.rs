@@ -4,6 +4,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Deserializer;
+use serde::Serialize;
+use ts_rs::TS;
 use validator::ValidationError;
 use validator_derive::Validate;
 
@@ -12,7 +14,8 @@ lazy_static! {
         Regex::new(r"^(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}$").unwrap();
 }
 
-#[derive(Debug, Validate, Clone, Deserialize)]
+#[derive(Debug, Validate, Clone, Deserialize, TS)]
+#[ts(export)]
 #[validate(schema(function = "validate_create_user_dto", skip_on_field_errors = false))]
 pub struct CreateUserDto {
     #[validate(email)]
