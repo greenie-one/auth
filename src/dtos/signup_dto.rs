@@ -18,14 +18,17 @@ lazy_static! {
 #[validate(schema(function = "validate_create_user_dto", skip_on_field_errors = false))]
 pub struct CreateUserDto {
     #[validate(email)]
+    #[ts(optional)]
     pub email: Option<String>,
 
     #[serde(rename = "mobileNumber")]
     #[serde(default)]
     #[serde(deserialize_with = "sanitize_mobile")]
     #[validate(regex = "MOBILE_REGEX")]
+    #[ts(optional)]
     pub mobile_number: Option<String>,
 
+    #[ts(optional)]
     pub password: Option<String>,
 }
 

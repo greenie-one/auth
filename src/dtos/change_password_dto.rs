@@ -25,6 +25,7 @@ pub struct ForgotPasswordDto {
 #[ts(export)]
 pub struct ChangePasswordDto {
     #[serde(rename = "currentPassword")]
+    #[ts(optional)]
     pub current_password: Option<String>,
 
     #[serde(rename = "newPassword")]

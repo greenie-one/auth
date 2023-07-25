@@ -26,10 +26,12 @@ pub struct TokenClaims {
 pub struct AccessTokenResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "accessToken")]
+    #[ts(optional)]
     pub access_token: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "refreshToken")]
+    #[ts(optional)]
     pub refresh_token: Option<String>,
 }
 
@@ -62,9 +64,11 @@ pub struct ProfileHints {
 #[ts(export)]
 pub struct OAuthLoginResponse {
     #[serde(rename = "accessToken")]
+    #[ts(optional)]
     pub access_token: Option<String>,
 
     #[serde(rename = "refreshToken")]
+    #[ts(optional)]
     pub refresh_token: Option<String>,
     pub profile_hints: ProfileHints,
 }
