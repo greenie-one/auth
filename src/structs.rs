@@ -70,6 +70,8 @@ pub struct OAuthLoginResponse {
     #[serde(rename = "refreshToken")]
     #[ts(optional)]
     pub refresh_token: Option<String>,
+
+    #[ts(inline)]
     pub profile_hints: ProfileHints,
 }
 
