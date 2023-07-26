@@ -8,16 +8,19 @@ use std::{
 use async_trait::async_trait;
 use jsonwebkey::JsonWebKey;
 use jsonwebtoken::{decode, TokenData, Validation};
+use mongodb::bson::oid::ObjectId;
 use serde::Deserialize;
+use serde_json::Value;
 use url::Url;
 
 use crate::{
-    database::mongo::UserModel,
+    database::mongo::{UserModel, MONGO_DB_INSTANCE},
     error::{Error, ErrorEnum},
     services::{signup::insert_user, token::create_token},
+    structs::{AccessTokenResponse, OAuthLoginResponse, ProfileHints},
 };
 
-use super::oauth::{OAuthLoginResponse, OAuthProviders, ProfileHints};
+use super::oauth::OAuthProviders;
 
 #[derive(Debug, Deserialize)]
 pub struct GoogleAccessTokenResponse {
@@ -43,16 +46,19 @@ pub struct GoogleAccessTokenClaims {
 pub struct GoogleProvider;
 
 impl GoogleProvider {
-    fn decode_token(&self, token: &str) -> Result<GoogleAccessTokenClaims, Error> {
-        let jwks = reqwest::blocking::get("https://www.googleapis.com/oauth2/v3/certs")?
-            .json::<serde_json::Value>()?;
+    fn decode_claims(
+        &self,
+        jwks: Value,
+        key: usize,
+        token: &str,
+    ) -> Result<TokenData<GoogleAccessTokenClaims>, Error> {
         let jwks = jwks
             .as_object()
             .unwrap()
             .get("keys")
             .unwrap()
             .as_array()
-            .unwrap()[0]
+            .unwrap()[key]
             .to_string();
         let jwk: JsonWebKey = jwks.parse().unwrap();
 
@@ -62,6 +68,22 @@ impl GoogleProvider {
         let claims: TokenData<GoogleAccessTokenClaims> =
             decode(token, &jwk.key.to_decoding_key(), &validation)?;
 
+        Ok(claims)
+    }
+
+    async fn decode_token(&self, token: &str) -> Result<GoogleAccessTokenClaims, Error> {
+        let jwks = reqwest::get("https://www.googleapis.com/oauth2/v3/certs")
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        let mut claims = self.decode_claims(jwks.clone(), 0, token);
+
+        if claims.is_err() {
+            claims = self.decode_claims(jwks, 1, token);
+        }
+
+        let claims = claims?;
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         if now > claims.claims.exp {
             return Err(ErrorEnum::TokenExpired.into());
@@ -74,7 +96,7 @@ impl GoogleProvider {
         &self,
         auth_code: Cow<'_, str>,
     ) -> Result<GoogleAccessTokenClaims, Error> {
-        let client = reqwest::blocking::Client::builder().build()?;
+        let client = reqwest::Client::builder().build()?;
 
         let mut params = HashMap::new();
         params.insert("grant_type", "authorization_code");
@@ -92,10 +114,13 @@ impl GoogleProvider {
         let resp = client
             .post("https://oauth2.googleapis.com/token")
             .form(&params)
-            .send()?
-            .json::<GoogleAccessTokenResponse>()?;
+            .send()
+            .await?
+            .json::<GoogleAccessTokenResponse>()
+            .await?;
 
         if resp.error.is_some() {
+            println!("{:?}", resp);
             return Err(ErrorEnum::OAuthFailed(format!(
                 "{}: {}",
                 resp.error.unwrap(),
@@ -105,7 +130,7 @@ impl GoogleProvider {
         }
 
         if resp.id_token.is_some() {
-            return self.decode_token(&resp.id_token.unwrap());
+            return self.decode_token(&resp.id_token.unwrap()).await;
         }
 
         Err(ErrorEnum::OAuthFailed("Missing id token in response".to_string()).into())
@@ -140,26 +165,28 @@ impl OAuthProviders for GoogleProvider {
         let code = code_opt.unwrap();
         let access_token_claims = self.get_access_token_claims(code.1).await?;
 
-        let mut user = UserModel {
-            _id: None,
-            email: access_token_claims.email,
-            mobile_number: None,
-            password: None,
-            roles: vec!["default".to_string()],
-        };
+        let token: AccessTokenResponse;
 
-        let insert_user_resp = insert_user(user.clone()).await;
-        if insert_user_resp.is_err() {
-            user = match insert_user_resp.unwrap_err() {
-                Error::DefinedError(e) => match e {
-                    ErrorEnum::UserAlreadyExists(u) => Ok(u),
-                    _ => Err(Error::DefinedError(e)),
-                },
-                e => Err(e),
-            }?;
+        let existing_user = MONGO_DB_INSTANCE
+            .get()
+            .await
+            .find_user(access_token_claims.email.clone(), None, None)
+            .await?;
+
+        if existing_user.is_some() {
+            token = create_token(existing_user.unwrap())?;
+        } else {
+            let user = insert_user(UserModel {
+                _id: Some(ObjectId::new()),
+                email: access_token_claims.email,
+                mobile_number: None,
+                password: None,
+                roles: vec!["default".to_string()],
+            })
+            .await?;
+
+            token = create_token(user)?;
         }
-
-        let token = create_token(user)?;
 
         Ok(OAuthLoginResponse {
             access_token: token.access_token,

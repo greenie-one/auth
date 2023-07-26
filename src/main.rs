@@ -158,7 +158,7 @@ fn get_route(route: &str) -> String {
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     env_config::load_env();
-    env::set_var("RUST_LOG", "ntex=info");
+    env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
     HttpServer::new(move || {

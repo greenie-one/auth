@@ -3,24 +3,11 @@ extern crate jsonwebtoken as jwt;
 
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
-use serde::{Deserialize, Serialize};
 
+pub use crate::structs::OAuthLoginResponse;
 use crate::error::{Error, ErrorEnum};
 
 use super::{google::GoogleProvider, linkedin::LinkedInProvider};
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProfileHints {
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OAuthLoginResponse {
-    pub access_token: Option<String>,
-    pub refresh_token: Option<String>,
-    pub profile_hints: ProfileHints,
-}
 
 #[async_trait]
 #[enum_dispatch]
