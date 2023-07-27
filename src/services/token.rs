@@ -51,7 +51,7 @@ pub fn decode_token(token: &str) -> Result<TokenClaims, Error> {
 
 pub fn create_token(user: UserModel) -> Result<AccessTokenResponse, Error> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let expiry = now + 24 * 60 * 60;
+    let expiry = now + 1000 * 60 * 60 * 24 * 31 * 365;
     let access_claims = TokenClaims {
         email: user.email,
         iss: "greenie.one".to_owned(),
