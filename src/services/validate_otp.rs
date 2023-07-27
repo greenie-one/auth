@@ -116,10 +116,6 @@ pub fn validate_otp(
         return Err(ErrorEnum::UserContactMissing.into());
     }
 
-    if APP_ENV.as_str() != "production" && otp == "123456" {
-        return Ok(());
-    }
-
     let otp_key = format!("{}_otp", contact.unwrap());
     let otp_fetched: String = REDIS_INSTANCE.lock().unwrap().get(otp_key.to_owned())?;
 
