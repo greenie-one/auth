@@ -1,7 +1,6 @@
 use crate::{
     database::{mongo::UserModel, redis::REDIS_INSTANCE},
     dtos::change_password_dto::ValidateForgotPasswordDto,
-    env_config::APP_ENV,
     error::{Error, ErrorEnum},
     remote::otp::{send_otp, ContactType},
     structs::{ChangePasswordValidationData, ValidationData},
@@ -48,11 +47,11 @@ pub async fn request_login_otp(user: UserModel, require_email_otp: bool) -> Resu
         let otp_resp = send_otp(contact.clone(), contact_type).await?;
         let otp = otp_resp.get("otp");
         if otp.is_some() {
-            let otp = otp.unwrap().to_string();
+            let otp = otp.unwrap().as_str().unwrap();
             REDIS_INSTANCE.lock().unwrap().set_ex(
                 format!("{}_otp", contact),
                 5 * 60,
-                otp.clone(),
+                otp.to_string(),
             )?;
         }
     }
@@ -117,11 +116,15 @@ pub fn validate_otp(
     }
 
     let otp_key = format!("{}_otp", contact.unwrap());
-    let otp_fetched: String = REDIS_INSTANCE.lock().unwrap().get(otp_key.to_owned())?;
+    let otp_fetched = REDIS_INSTANCE.lock().unwrap().get(otp_key.to_owned())?;
 
     // Check OTP only on mobile number. Let email pass without OTP
     if should_validate_otp(validation_type, user.clone()) {
-        if !otp.eq(&otp_fetched) {
+        if otp_fetched.is_none() {
+            return Err(ErrorEnum::OTPExpired.into());
+        }
+
+        if !otp.eq(&otp_fetched.unwrap()) {
             return Err(ErrorEnum::InvalidOTP.into());
         }
     }
