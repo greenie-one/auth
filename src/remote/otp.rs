@@ -17,9 +17,8 @@ fn get_otp_type(contact_type: ContactType) -> String {
 
 pub async fn send_otp(
     contact: String,
-    otp: String,
     contact_type: ContactType,
-) -> Result<(), Error> {
+) -> Result<serde_json::Value, Error> {
     println!("Sending OTP");
 
     let client = reqwest::ClientBuilder::new().build()?;
@@ -29,7 +28,7 @@ pub async fn send_otp(
             "{}/otp/send",
             std::env::var("REMOTE_BASE_URL").unwrap()
         ))
-        .json(&json!({ "type": get_otp_type(contact_type), "contact": contact, "otp": otp }))
+        .json(&json!({ "type": get_otp_type(contact_type), "contact": contact}))
         .send()
         .await?
         .json()
@@ -37,5 +36,5 @@ pub async fn send_otp(
 
     println!("Got OTP response {:?}", resp);
 
-    Ok(())
+    Ok(resp)
 }
