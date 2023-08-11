@@ -29,6 +29,7 @@ pub enum ErrorEnum {
     UserNotFound,
     UserContactMissing,
     PasswordMismatch,
+    PasswordNotSet,
     EmailMobileEmpty,
     InvalidOTP,
     TokenExpired,
@@ -115,6 +116,11 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
             message: "Use OAuth login method for this email".to_string(),
             status: 400,
             code: "GRA0018",
+        },
+        ErrorEnum::PasswordNotSet => GenericError {
+            message: "Password not set".to_string(),
+            status: 400,
+            code: "GRA0019",
         },
     }
 }
