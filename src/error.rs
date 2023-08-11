@@ -29,6 +29,7 @@ pub enum ErrorEnum {
     UserNotFound,
     UserContactMissing,
     PasswordMismatch,
+    PasswordNotSet,
     EmailMobileEmpty,
     InvalidOTP,
     TokenExpired,
@@ -121,6 +122,11 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
             message: "OTP likely expired".to_string(),
             status: 400,
             code: "GRA0019",
+        },
+        ErrorEnum::PasswordNotSet => GenericError {
+            message: "Password not set".to_string(),
+            status: 400,
+            code: "GRA0020",
         },
     }
 }
