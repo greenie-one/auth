@@ -39,9 +39,8 @@ impl Redis {
         }
     }
 
-    pub fn get(&mut self, key: String) -> Result<String, Error> {
-        let data: String = self.connection.get(key)?;
-
+    pub fn get(&mut self, key: String) -> Result<Option<String>, Error> {
+        let data: Option<String> = self.connection.get(key)?;
         Ok(data)
     }
 

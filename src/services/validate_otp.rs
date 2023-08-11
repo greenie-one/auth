@@ -1,9 +1,6 @@
-use rand::{thread_rng, Rng};
-
 use crate::{
     database::{mongo::UserModel, redis::REDIS_INSTANCE},
     dtos::change_password_dto::ValidateForgotPasswordDto,
-    env_config::APP_ENV,
     error::{Error, ErrorEnum},
     remote::otp::{send_otp, ContactType},
     structs::{ChangePasswordValidationData, ValidationData},
@@ -16,18 +13,20 @@ pub async fn request_forgot_pass_otp(
     user_id: String,
     email: String,
 ) -> Result<(), Error> {
-    let otp = format!("{:06}", thread_rng().gen_range(0..999999));
+    let otp_resp = send_otp(email, ContactType::EMAIL).await?;
+    let otp = otp_resp.get("otp");
+    if otp.is_some() {
+        let otp = otp.unwrap().to_string();
+        REDIS_INSTANCE.lock()?.set_ex(
+            format!("change_password_{}", validation_id),
+            15 * 60,
+            serde_json::to_string(&ChangePasswordValidationData {
+                user_id,
+                otp: otp.clone(),
+            })?,
+        )?;
+    }
 
-    REDIS_INSTANCE.lock()?.set_ex(
-        format!("change_password_{}", validation_id),
-        15 * 60,
-        serde_json::to_string(&ChangePasswordValidationData {
-            user_id,
-            otp: otp.clone(),
-        })?,
-    )?;
-
-    send_otp(email, otp, ContactType::EMAIL).await?;
     Ok(())
 }
 
@@ -42,17 +41,19 @@ pub async fn request_login_otp(user: UserModel, require_email_otp: bool) -> Resu
 
     let contact = contact.unwrap();
 
-    let otp = format!("{:06}", thread_rng().gen_range(0..999999));
-
-    REDIS_INSTANCE
-        .lock()
-        .unwrap()
-        .set_ex(format!("{}_otp", contact), 5 * 60, otp.clone())?;
-
     if contact_type == ContactType::MOBILE
         || (contact_type == ContactType::EMAIL && require_email_otp)
     {
-        send_otp(contact, otp, contact_type).await?;
+        let otp_resp = send_otp(contact.clone(), contact_type).await?;
+        let otp = otp_resp.get("otp");
+        if otp.is_some() {
+            let otp = otp.unwrap().as_str().unwrap();
+            REDIS_INSTANCE.lock().unwrap().set_ex(
+                format!("{}_otp", contact),
+                5 * 60,
+                otp.to_string(),
+            )?;
+        }
     }
 
     Ok(())
@@ -114,16 +115,16 @@ pub fn validate_otp(
         return Err(ErrorEnum::UserContactMissing.into());
     }
 
-    if APP_ENV.as_str() != "production" && otp == "123456" {
-        return Ok(());
-    }
-
     let otp_key = format!("{}_otp", contact.unwrap());
-    let otp_fetched: String = REDIS_INSTANCE.lock().unwrap().get(otp_key.to_owned())?;
+    let otp_fetched = REDIS_INSTANCE.lock().unwrap().get(otp_key.to_owned())?;
 
     // Check OTP only on mobile number. Let email pass without OTP
     if should_validate_otp(validation_type, user.clone()) {
-        if !otp.eq(&otp_fetched) {
+        if otp_fetched.is_none() {
+            return Err(ErrorEnum::OTPExpired.into());
+        }
+
+        if !otp.eq(&otp_fetched.unwrap()) {
             return Err(ErrorEnum::InvalidOTP.into());
         }
     }

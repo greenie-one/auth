@@ -38,6 +38,7 @@ pub enum ErrorEnum {
     NotYetImplemented,
     ValidationError(String),
     UseOAuthLoginInstead,
+    OTPExpired,
 }
 
 fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
@@ -119,6 +120,11 @@ fn get_error<'a>(val: &ErrorEnum) -> GenericError<'a> {
         },
         ErrorEnum::PasswordNotSet => GenericError {
             message: "Password not set".to_string(),
+            status: 400,
+            code: "GRA0019",
+        },
+        ErrorEnum::OTPExpired => GenericError {
+            message: "OTP likely expired".to_string(),
             status: 400,
             code: "GRA0019",
         },

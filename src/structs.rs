@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{database::mongo::UserModel, services::signup::ValidationType};
 
@@ -20,14 +21,17 @@ pub struct TokenClaims {
     pub exp: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, TS)]
+#[ts(export)]
 pub struct AccessTokenResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "accessToken")]
+    #[ts(optional)]
     pub access_token: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "refreshToken")]
+    #[ts(optional)]
     pub refresh_token: Option<String>,
 }
 
@@ -50,18 +54,41 @@ pub struct GenericError<'a> {
     pub code: &'a str,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 pub struct ProfileHints {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct OAuthLoginResponse {
     #[serde(rename = "accessToken")]
+    #[ts(optional)]
     pub access_token: Option<String>,
 
     #[serde(rename = "refreshToken")]
+    #[ts(optional)]
     pub refresh_token: Option<String>,
+
+    #[ts(inline)]
     pub profile_hints: ProfileHints,
 }
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct OAuthRedirectUriResponse {
+    #[serde(rename = "redirectUrl")]
+    pub redirect_url: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
+pub struct ValidationIdResponse {
+    #[serde(rename = "validationId")]
+    pub validation_id: String,
+}
+
+pub type SignUpResponse = ValidationIdResponse;
+pub type LoginResponse = ValidationIdResponse;
+pub type ForgotPasswordResponse = ValidationIdResponse;
