@@ -45,7 +45,7 @@ pub async fn change_password(
     let user = user.unwrap();
 
     let is_password_correct = bypass_pass_check
-        || bcrypt::verify(data.current_password.unwrap(), &user.password.unwrap())?;
+        || bcrypt::verify(data.current_password.unwrap(), &user.password.ok_or_else(|| ErrorEnum::PasswordNotSet)?)?;
     if is_password_correct {
         mongodb
             .update_password(

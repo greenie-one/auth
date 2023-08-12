@@ -1,9 +1,12 @@
 use async_trait::async_trait;
 use url::Url;
 
-use crate::error::{Error, ErrorEnum};
+use crate::{
+    error::{Error, ErrorEnum},
+    structs::OAuthLoginResponse,
+};
 
-use super::oauth::{OAuthLoginResponse, OAuthProviders};
+use super::oauth::OAuthProviders;
 
 pub struct LinkedInProvider;
 

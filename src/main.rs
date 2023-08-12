@@ -10,6 +10,7 @@ use services::change_password::change_password as change_password_service;
 use services::oauth::oauth::{get_provider, OAuthProviders};
 use services::refresh::get_refreshed_tokens;
 use services::validate_otp::generate_and_resend_otp;
+use structs::{ForgotPasswordResponse, LoginResponse, OAuthRedirectUriResponse, SignUpResponse};
 use validator::Validate;
 
 use crate::dtos::change_password_dto::{
@@ -52,7 +53,7 @@ async fn signup(item: web::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
 
     let validation_id = create_temp_user(item.into_inner().clone(), ValidationType::Signup).await?;
 
-    Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": validation_id })))
+    Ok(HttpResponse::build(StatusCode::OK).json(&SignUpResponse { validation_id }))
 }
 
 async fn login(item: web::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
@@ -60,7 +61,7 @@ async fn login(item: web::Json<CreateUserDto>) -> Result<HttpResponse, Error> {
 
     let validation_id = create_temp_user(item.into_inner().clone(), ValidationType::Login).await?;
 
-    Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": validation_id })))
+    Ok(HttpResponse::build(StatusCode::OK).json(&json!(&LoginResponse { validation_id })))
 }
 
 async fn validate_otp(item: web::Json<ValidateOtpDto>) -> Result<HttpResponse, Error> {
@@ -91,8 +92,8 @@ async fn validate_forgot_password_otp(
 async fn forgot_password(item: web::Json<ForgotPasswordDto>) -> Result<HttpResponse, Error> {
     item.validate()?;
 
-    let data = initiate_forgot_password(item.email.clone()).await?;
-    Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "validationId": data })))
+    let validation_id = initiate_forgot_password(item.email.clone()).await?;
+    Ok(HttpResponse::build(StatusCode::OK).json(&ForgotPasswordResponse { validation_id }))
 }
 
 async fn change_password(
@@ -131,7 +132,7 @@ async fn get_oauth_redirect_uri(provider: web::Path<String>) -> Result<HttpRespo
     let provider = get_provider(provider.as_str())?;
     let url = provider.get_redirect_uri()?;
 
-    Ok(HttpResponse::build(StatusCode::OK).json(&json!({ "redirectUrl": url })))
+    Ok(HttpResponse::build(StatusCode::OK).json(&OAuthRedirectUriResponse { redirect_url: url }))
 }
 
 async fn handle_oauth_callback(
